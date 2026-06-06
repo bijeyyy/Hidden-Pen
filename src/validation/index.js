@@ -1,0 +1,5 @@
+export { default as Login } from './Login'
+export { default as SignUp } from './SignUp'
+export { default as Forgot_Password } from './Forgot_Password'
+export { default as EmailConfirmed } from './EmailConfirmed'
+export { default as VerifyNotice } from './VerifyNotice'
