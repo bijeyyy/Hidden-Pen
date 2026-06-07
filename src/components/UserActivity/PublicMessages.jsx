@@ -80,26 +80,25 @@ function PublicMessagePage() {
         if (!message.trim() || !receiver) return;
 
         if (!receiverSettings?.allow_link_sharing) {
-            setError("This user is not accepting messages right now.");
+            setError("This user is not accepting messages.");
             return;
         }
 
         if (!receiverSettings?.anon_messages && !currentUser) {
-            setError(
-                "This user only accepts messages from logged-in users. Please log in."
-            );
+            setError("Login required to send messages.");
             return;
         }
 
         const { error: insertError } = await supabase.from("messages").insert({
             receiver_id: receiver.id,
             message: message.trim(),
-            sender_id: currentUser?.id || null,
+
+            sender_id: currentUser?.id ?? null,
         });
 
         if (insertError) {
             console.error("Insert Error:", insertError);
-            setError(insertError.message || "Failed to send message.");
+            setError(insertError.message);
             return;
         }
 
@@ -118,7 +117,7 @@ function PublicMessagePage() {
                         Not Accepting Messages
                     </h1>
                     <p className="text-gray-400 text-sm">
-                        This user has temporarily paused their hidden link.
+                        This user has disabled message receiving.
                     </p>
                 </div>
             </div>
@@ -128,13 +127,14 @@ function PublicMessagePage() {
     return (
         <div className="min-h-screen flex items-center justify-center px-6">
             <div className="w-full max-w-md bg-card border border-default rounded-base p-6">
+
                 <h1 className="text-2xl font-semibold mb-2">
                     Send a message to {receiver.display_name}
                 </h1>
 
                 {!receiverSettings?.anon_messages && !currentUser && (
                     <p className="text-amber-500 text-sm mt-2 mb-4">
-                        This user requires login before sending messages.
+                        Login required to send a message.
                     </p>
                 )}
 
