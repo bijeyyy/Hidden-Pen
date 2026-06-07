@@ -1,25 +1,53 @@
 import './App.css'
-import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import { Navbar, Home, About, Features, Works, Footer } from './components/layout'
 import { Login, SignUp, EmailConfirmed, Forgot_Password, VerifyNotice } from './validation'
 import { User_Dashboard } from './components/User'
 import { UserFavorites, UserInbox, UserLink, UserProfile, UserSettings, PublicMessages } from './components/UserActivity'
 import { useEffect } from 'react'
 
-function App() {
+function ThemeManager() {
+  const location = useLocation();
 
   useEffect(() => {
     const theme = localStorage.getItem("theme");
 
+    const publicPages = [
+      "/",
+      "/login",
+      "/signup",
+      "/VerifyNotice",
+      "/EmailConfirmed",
+      "/forgot_password"
+    ];
+
+    const isPublicPage = publicPages.includes(location.pathname);
+
+    // 🌤 FORCE LIGHT MODE FOR PUBLIC PAGES
+    if (isPublicPage) {
+      document.documentElement.classList.remove("dark");
+      return;
+    }
+
+    // 🌙 USER PAGES FOLLOW THEME
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
     }
-  }, []);
+
+  }, [location.pathname]);
+
+  return null;
+}
+
+function App() {
 
   return (
     <>
 
       <BrowserRouter>
+      <ThemeManager />
       <Routes>
         <Route path="/" element={
           <div className='grid justify-center items-center'>

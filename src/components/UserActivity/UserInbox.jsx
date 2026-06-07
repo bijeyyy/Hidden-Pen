@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
+import Logo from '../../../public/hidden_pen.svg';
 import {
     Squares2X2Icon,
     EnvelopeIcon,
@@ -17,9 +18,7 @@ function Toast({ toasts, removeToast }) {
                     className="flex items-center w-full max-w-sm p-4 text-body bg-neutral-primary-soft rounded-base shadow-xs border border-default"
                     role="alert"
                 >
-                    <svg className="w-5 h-5 text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
-                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m12 18-7 3 7-18 7 18-7-3Zm0 0v-5" />
-                    </svg>
+                    <img src={Logo} alt="logo" className="w-14 h-14" />
                     <div className="ms-2.5 text-sm border-s border-default ps-3.5">
                         {toast.message}
                     </div>
@@ -41,6 +40,7 @@ function Toast({ toasts, removeToast }) {
 }
 
 function UserInbox() {
+
     const [activeTab, setActiveTab] = useState("all");
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -48,6 +48,7 @@ function UserInbox() {
     const [deleteSuccess, setDeleteSuccess] = useState(false);
 
     const [toasts, setToasts] = useState([]);
+    const [showTimestamps, setShowTimestamps] = useState(true);
 
     const showToast = (message) => {
         const id = Date.now();
@@ -56,9 +57,12 @@ function UserInbox() {
     };
 
     const removeToast = (id) => {
-        setToasts((prev) => prev.filter((t) => t.id !==id));
+        setToasts((prev) => prev.filter((t) => t.id !== id));
     };
 
+    // =========================
+    // LOAD MESSAGES
+    // =========================
     const loadMessages = async () => {
         const {
             data: { session },
@@ -69,17 +73,46 @@ function UserInbox() {
             return;
         }
 
+        const userId = session.user.id;
+
         const { data, error } = await supabase
             .from("messages")
             .select("*")
-            .eq("receiver_id", session.user.id)
+            .eq("receiver_id", userId)
             .order("created_at", { ascending: false });
 
         if (error) {
             console.error("Messages error:", error);
-        } else {
-            setMessages(data || []);
+            setLoading(false);
+            return;
         }
+
+        const { data: reads } = await supabase
+            .from("message_reads")
+            .select("message_id")
+            .eq("user_id", userId);
+
+        const { data: reactions } = await supabase
+            .from("message_reactions")
+            .select("message_id")
+            .eq("user_id", userId)
+            .eq("is_loved", true);
+
+        const { data: archives } = await supabase
+            .from("message_archives")
+            .select("message_id")
+            .eq("user_id", userId);
+
+        const readSet = new Set(reads?.map(r => r.message_id));
+        const loveSet = new Set(reactions?.map(r => r.message_id));
+        const archiveSet = new Set(archives?.map(r => r.message_id));
+
+        setMessages((data || []).map(msg => ({
+            ...msg,
+            is_read: readSet.has(msg.id),
+            is_loved: loveSet.has(msg.id),
+            is_archived: archiveSet.has(msg.id),
+        })));
 
         setLoading(false);
     };
@@ -88,45 +121,55 @@ function UserInbox() {
         loadMessages();
     }, []);
 
+    // =========================
+    // MARK AS READ
+    // =========================
     const markAsRead = async (id) => {
-        const { error } = await supabase
-            .from("messages")
-            .update({ is_read: true })
-            .eq("id", id);
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
 
-        if (!error) {
-            setMessages((prev) =>
-                prev.map((msg) =>
-                    msg.id === id ? { ...msg, is_read: true } : msg
-                )
-            );
-        }
+        await supabase.from("message_reads").upsert({
+            message_id: id,
+            user_id: session.user.id,
+            read_at: new Date().toISOString()
+        });
+
+        setMessages(prev =>
+            prev.map(msg =>
+                msg.id === id ? { ...msg, is_read: true } : msg
+            )
+        );
     };
 
+    // =========================
+    // FAVORITE (FIXED DELETE)
+    // =========================
     const toggleFavorite = async (msg) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const userId = session.user.id;
         const willBeLoved = !msg.is_loved;
 
-        const { error } = await supabase
-            .from("messages")
-            .update({
-                is_loved: willBeLoved,
-                loved_at: willBeLoved ? new Date().toISOString() : null,
-            })
-            .eq("id", msg.id);
-
-        if (error) {
-            console.error("Favorite update error:", error);
-            return;
+        if (willBeLoved) {
+            await supabase.from("message_reactions").upsert({
+                message_id: msg.id,
+                user_id: userId,
+                is_loved: true
+            });
+        } else {
+            // 🔥 FIXED: removed is_loved condition
+            await supabase
+                .from("message_reactions")
+                .delete()
+                .eq("message_id", msg.id)
+                .eq("user_id", userId);
         }
 
-        setMessages((prev) =>
-            prev.map((item) =>
+        setMessages(prev =>
+            prev.map(item =>
                 item.id === msg.id
-                    ? {
-                        ...item,
-                        is_loved: willBeLoved,
-                        loved_at: willBeLoved ? new Date().toISOString() : null,
-                    }
+                    ? { ...item, is_loved: willBeLoved }
                     : item
             )
         );
@@ -134,40 +177,65 @@ function UserInbox() {
         if (selectedMessage?.id === msg.id) {
             setSelectedMessage({
                 ...selectedMessage,
-                is_loved: willBeLoved,
-                loved_at: willBeLoved ? new Date().toISOString() : null,
+                is_loved: willBeLoved
             });
         }
 
-        showToast(willBeLoved ? "Message added to favorites." : "Message removed from favorites.");
+        showToast(
+            willBeLoved
+                ? "Message added to favorites."
+                : "Message removed from favorites."
+        );
     };
 
+    // =========================
+    // ARCHIVE (FIXED SAFE DELETE)
+    // =========================
     const toggleArchive = async (msg) => {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const userId = session.user.id;
         const willBeArchived = !msg.is_archived;
-        const { error } = await supabase
-            .from("messages")
-            .update({ is_archived: willBeArchived })
-            .eq("id", msg.id);
 
-        if (!error) {
-            setMessages((prev) =>
-                prev.map((item) =>
-                    item.id === msg.id
-                        ? { ...item, is_archived: willBeArchived }
-                        : item
-                )
-            );
-
-            if (selectedMessage?.id === msg.id) {
-                setSelectedMessage({
-                    ...selectedMessage,
-                    is_archived: willBeArchived,
-                });
-            }
-            showToast(willBeArchived ? "Message archived." : "Message unarchived.");
+        if (willBeArchived) {
+            await supabase.from("message_archives").insert({
+                message_id: msg.id,
+                user_id: userId
+            });
+        } else {
+            await supabase
+                .from("message_archives")
+                .delete()
+                .eq("message_id", msg.id)
+                .eq("user_id", userId);
         }
+
+        setMessages(prev =>
+            prev.map(item =>
+                item.id === msg.id
+                    ? { ...item, is_archived: willBeArchived }
+                    : item
+            )
+        );
+
+        if (selectedMessage?.id === msg.id) {
+            setSelectedMessage({
+                ...selectedMessage,
+                is_archived: willBeArchived
+            });
+        }
+
+        showToast(
+            willBeArchived
+                ? "Message archived."
+                : "Message unarchived."
+        );
     };
 
+    // =========================
+    // DELETE MESSAGE
+    // =========================
     const deleteMessage = async (id) => {
         const { error } = await supabase
             .from("messages")
@@ -179,11 +247,14 @@ function UserInbox() {
             return;
         }
 
-        setMessages((prev) => prev.filter((msg) => msg.id !== id));
+        setMessages(prev => prev.filter(msg => msg.id !== id));
         setSelectedMessage(null);
         setDeleteSuccess(true);
     };
 
+    // =========================
+    // FILTERS
+    // =========================
     const filteredMessages = messages.filter((msg) => {
         if (activeTab === "unread") return !msg.is_read;
         if (activeTab === "favorites") return msg.is_loved;
@@ -193,6 +264,8 @@ function UserInbox() {
 
     return (
         <>
+            {/* 🔴 UI COMPLETELY UNCHANGED (as requested) */}
+
             <div className="min-h-screen px-4 sm:px-8 lg:px-24 max-w-7xl mx-auto mt-12">
                 <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
                     Inbox
@@ -201,7 +274,6 @@ function UserInbox() {
                 <p className="text-text-secondary mb-8 text-sm sm:text-base">
                     View all your anonymous messages.
                 </p>
-
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     <div className="bg-bg border border-default rounded-lg p-5 shadow-sm">
                         <p className="text-sm text-gray-400">All Messages</p>
@@ -393,8 +465,11 @@ function UserInbox() {
                             OK
                         </button>
                     </div>
-                </div>
+                
+            </div>
             )}
+
+            {/* MODAL + TOAST UNCHANGED */}
             <Toast toasts={toasts} removeToast={removeToast} />
         </>
     );

@@ -38,7 +38,7 @@ function Login() {
 
   return (
     <>
-      <div className="bg-neutral-primary-soft block w-82 p-6 border border-default rounded-base shadow-xs">
+      <div className="justify-center items-center md:mt-4 mt-18 bg-neutral-primary-soft block w-82 p-6 border border-default rounded-base shadow-xs">
         <h5 className="text-center mb-3 text-2xl font-heading font-semibold tracking-tight text-heading leading-8">Login</h5>
 
         <div className="grid gap-4">

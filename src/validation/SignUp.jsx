@@ -43,7 +43,7 @@ function SignUp() {
 
   return (
     <>
-      <div className="bg-neutral-primary-soft block w-82 p-6 border border-default rounded-base shadow-xs">
+      <div className="justify-center items-center md:-mt-2 mt-18 bg-neutral-primary-soft block w-82 p-6 border border-default rounded-base shadow-xs">
         <h5 className="text-center mb-3 text-2xl font-heading font-semibold tracking-tight text-heading leading-8">Sign Up</h5>
 
         <form onSubmit={handleSignup} className="grid gap-4">

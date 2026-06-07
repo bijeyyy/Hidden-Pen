@@ -1,32 +1,42 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/SupabaseClient";
 
+const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+
+function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
 function UserSettings() {
     const [loading, setLoading] = useState(true);
     const [userId, setUserId] = useState(null);
     const [userEmail, setUserEmail] = useState("");
+    const [username, setUsername] = useState("");
     const [copyFeedback, setCopyFeedback] = useState(false);
     const [passwordMsg, setPasswordMsg] = useState("");
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [providers, setProviders] = useState([]);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [showSuccessModal, setShowSuccessModal] = useState(false);
+    const [pushSupported, setPushSupported] = useState(false);
 
     const [settings, setSettings] = useState({
         anon_messages: true,
         allow_link_sharing: true,
 
         msg_notifications: true,
-        email_notifications: true,
-        weekly_summary: true,
 
         dark_mode: false,
 
-        auto_delete_days: false,
         show_timestamps: true,
     });
 
-    const hiddenLink = "https://hiddenpen.app/u/beejeyyy";
+    const hiddenLink = username
+        ? `https://hiddenpen.app/u/${username}`
+        : "";
 
     const applyTheme = (value) => {
         if (value) {
@@ -76,6 +86,16 @@ function UserSettings() {
 
             setProviders(user.app_metadata?.providers || []);
 
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("username")
+                .eq("id", user.id)
+                .single();
+
+            if (profile) {
+                setUsername(profile.username);
+            }
+
             const { data } = await supabase
                 .from("user_settings")
                 .select("*")
@@ -108,6 +128,10 @@ function UserSettings() {
         };
 
         loadSettings();
+
+        if ("serviceWorker" in navigator && "PushManager" in window) {
+            setPushSupported(true);
+        }
     }, []);
 
     const updateSetting = async (key, value) => {
@@ -120,8 +144,65 @@ function UserSettings() {
             .eq("user_id", userId);
     };
 
-    const copyLink = () => {
-        navigator.clipboard.writeText(hiddenLink);
+    const subscribeToPush = async () => {
+        try {
+            const reg = await navigator.serviceWorker.register("/sw.js");
+            const existing = await reg.pushManager.getSubscription();
+            if (existing) return existing;
+
+            const subscription = await reg.pushManager.getSubscription({
+                userVisibleOnly: true,
+                applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+            });
+
+            await supabase.from("push_subscriptions").upsert({
+                user_id: userId,
+                subscription: JSON.stringify(subscription),
+            });
+
+            return subscription;
+        } catch (err) {
+            console.error("Push subscription error:", err);
+        }
+    };
+
+    const unsubscribeFromPush = async () => {
+        try {
+            const reg = await navigator.serviceWorker.getRegistration("/sw.js");
+            const sub = await reg?.pushManager.getSubscription();
+            if (sub) await sub, unsubscribe();
+
+            await supabase
+                .from("push_notifications")
+                .delete()
+                .eq("user_id", userId);
+        } catch (err) {
+            console.error("Push unsubscribe error:", err);
+        }
+    };
+
+    const handleNotificationToggle = async (value) => {
+        if (!pushSupported) return;
+
+        if (value) {
+            const permission = await Notification.requestPermission();
+            if (permission !== "granted") {
+                alert("Please allow notifications in your browser settings to enable this.");
+                return;
+            }
+            await subscribeToPush();
+        } else {
+            await unsubscribeFromPush();
+        }
+
+        updateSetting("msg_notifications", value);
+    };
+
+    const copyLink = async () => {
+        if (!hiddenLink) return;
+
+        await navigator.clipboard.writeText(hiddenLink);
+
         setCopyFeedback(true);
         setTimeout(() => setCopyFeedback(false), 2000);
     };
@@ -132,7 +213,8 @@ function UserSettings() {
         if (isGoogleOnly) {
             setPasswordMsg(
                 "You signed in with Google. Password reser is not required."
-            )
+            );
+            return;
         }
 
         setPasswordLoading(true);
@@ -153,41 +235,6 @@ function UserSettings() {
     const isGoogleOnly =
         providers.includes("google") &&
         !providers.includes("email");
-
-    const handleDeleteAccount = async () => {
-        try {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-
-            const response = await fetch(
-                "https://YOUR_PROJECT.functions.supabase.co/delete-account",
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${session.access_token}`,
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error);
-            }
-
-            setShowDeleteModal(false);
-            setShowSuccessModal(true);
-
-            setTimeout(() => {
-                window.location.href = "/";
-            }, 2000);
-
-        } catch (err) {
-            alert(err.message);
-        }
-    };
 
     if (loading) {
         return <div className="p-10 text-center">Loading settings...</div>;
@@ -253,38 +300,15 @@ function UserSettings() {
                         <div>
                             <span>Message Notifications</span>
                             <p className="text-xs text-gray-400 mt-0.5">
-                                In-app alert when someone sends you a message
+                                {pushSupported
+                                    ? "Get a push notification when someone messages you"
+                                    : "Push notifications are not supported in your browser"}
                             </p>
                         </div>
                         <ToggleSwitch
                             checked={settings.msg_notifications}
-                            onChange={(value) => updateSetting("msg_notifications", value)}
-                        />
-                    </label>
-
-                    <label className="flex items-center justify-between gap-4 py-2">
-                        <div>
-                            <span>Email Notifications</span>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                                Get an email when a new message arrives
-                            </p>
-                        </div>
-                        <ToggleSwitch
-                            checked={settings.email_notifications}
-                            onChange={(value) => updateSetting("email_notifications", value)}
-                        />
-                    </label>
-
-                    <label className="flex items-center justify-between gap-4 py-2">
-                        <div>
-                            <span>Weekly Summary</span>
-                            <p className="text-xs text-gray-400 mt-0.5">
-                                A weekly recap of how many messages you received
-                            </p>
-                        </div>
-                        <ToggleSwitch
-                            checked={settings.weekly_summary}
-                            onChange={(value) => updateSetting("weekly_summary", value)}
+                            onChange={handleNotificationToggle}
+                            disabled={!pushSupported}
                         />
                     </label>
                 </div>
@@ -345,20 +369,10 @@ function UserSettings() {
                     <label className="flex items-center justify-between gap-4 py-2">
                         <div>
                             <span>Auto-delete after 30 days</span>
-                            {settings.auto_delete_days ? (
-                                <p className="text-xs text-amber-500 mt-0.5">
-                                    ⚠ Messages older than 30 days will be permanently deleted
-                                </p>
-                            ) : (
-                                <p className="text-xs text-gray-400 mt-0.5">
-                                    Messages are kept until you manually delete them
-                                </p>
-                            )}
+                            <p className="text-xs text-amber-500 mt-0.5">
+                                ⚠ Messages older than 30 days will be permanently deleted
+                            </p>
                         </div>
-                        <ToggleSwitch
-                            checked={settings.auto_delete_days}
-                            onChange={(value) => updateSetting("auto_delete_days", value)}
-                        />
                     </label>
 
                     <label className="flex items-center justify-between gap-4 py-2">
@@ -415,66 +429,8 @@ function UserSettings() {
                             )}
                         </div>
                     )}
-
-                    <button
-                        onClick={() => setShowDeleteModal(true)}
-                        className="block w-full text-left py-2 text-red-500 cursor-pointer hover:underline"
-                    >
-                        Delete Account
-                    </button>
                 </div>
             </div>
-
-            {showDeleteModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-6 w-[400px] shadow-xl">
-                        <h2 className="text-xl font-bold mb-3 text-red-500">
-                            Delete Account
-                        </h2>
-
-                        <p className="text-gray-600 mb-6">
-                            Are you sure you want to permanently delete your account?
-                            This action cannot be undone.
-                        </p>
-
-                        <div className="flex justify-end gap-3">
-                            <button
-                                onClick={() => setShowDeleteModal(false)}
-                                className="px-4 py-2 border rounded-lg hover:bg-gray-100"
-                            >
-                                Cancel
-                            </button>
-
-                            <button
-                                onClick={handleDeleteAccount}
-                                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
-                            >
-                                Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            )}
-
-            {showSuccessModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-2xl p-8 w-[350px] shadow-xl text-center">
-
-                        <div className="text-green-500 text-6xl mb-4">
-                            ✓
-                        </div>
-
-                        <h2 className="text-2xl font-bold mb-2">
-                            Account Successfully Deleted
-                        </h2>
-
-                        <p className="text-gray-500">
-                            Redirecting to home page...
-                        </p>
-
-                    </div>
-                </div>
-            )}
 
         </>
     );
