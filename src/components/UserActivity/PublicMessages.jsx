@@ -14,10 +14,14 @@ function PublicMessagePage() {
     const [currentUser, setCurrentUser] = useState(null);
 
     useEffect(() => {
+        let isMounted = true;
+
         const loadReceiver = async () => {
+            setLoading(true);
+
             const { data: { user } } = await supabase.auth.getUser();
-            setCurrentUser(user);
-            
+            if (isMounted) setCurrentUser(user || null);
+
             const { data, error } = await supabase
                 .from("profiles")
                 .select("id, username, display_name, avatar_url")
@@ -25,11 +29,11 @@ function PublicMessagePage() {
                 .single();
 
             if (error || !data) {
-                setLoading(false);
-                return
+                if (isMounted) setLoading(false);
+                return;
             }
 
-            setReceiver(data);
+            if (isMounted) setReceiver(data);
 
             const { data: settings } = await supabase
                 .from("user_settings")
@@ -37,11 +41,21 @@ function PublicMessagePage() {
                 .eq("user_id", data.id)
                 .single();
 
-            setReceiverSettings(settings);
-            setLoading(false);
+            if (isMounted) setReceiverSettings(settings);
+            if (isMounted) setLoading(false);
         };
 
         loadReceiver();
+
+        // 🔥 FIX: realtime auth session tracking
+        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+            setCurrentUser(session?.user || null);
+        });
+
+        return () => {
+            isMounted = false;
+            listener.subscription.unsubscribe();
+        };
     }, [username]);
 
     const sendMessage = async () => {
@@ -59,7 +73,7 @@ function PublicMessagePage() {
             return;
         }
 
-        const { error } = await supabase
+        const { error: insertError } = await supabase
             .from("messages")
             .insert({
                 receiver_id: receiver.id,
@@ -75,19 +89,17 @@ function PublicMessagePage() {
         }
     };
 
-    if (loading) {
-        return <p>Loading...</p>;
-    }
+    if (loading) return <p>Loading...</p>;
 
-    if (!receiver) {
-        return <p>User not found.</p>;
-    }
+    if (!receiver) return <p>User not found.</p>;
 
     if (receiverSettings && !receiverSettings.allow_link_sharing) {
         return (
             <div className="min-h-screen flex items-center justify-center px-6">
                 <div className="w-full max-w-md bg-card border border-default rounded-base p-6 text-center">
-                    <h1 className="text-xl font-semibold mb-2">Not Accepting Messages</h1>
+                    <h1 className="text-xl font-semibold mb-2">
+                        Not Accepting Messages
+                    </h1>
                     <p className="text-gray-400 text-sm">
                         This user has temporarily paused their hidden link.
                     </p>
@@ -99,6 +111,7 @@ function PublicMessagePage() {
     return (
         <div className="min-h-screen flex items-center justify-center px-6">
             <div className="w-full max-w-md bg-card border border-default rounded-base p-6">
+
                 <h1 className="text-2xl font-semibold mb-2">
                     Send a message to {receiver.display_name}
                 </h1>
@@ -114,14 +127,12 @@ function PublicMessagePage() {
                     onChange={(e) => setMessage(e.target.value)}
                     className="w-full border rounded-base p-3 mt-4"
                     rows="5"
-                    placeholder="Write your anonymous message..."
+                    placeholder="Write your message..."
                     disabled={!receiverSettings?.anon_messages && !currentUser}
                 />
 
                 {error && (
-                    <p className="mt-2 text-red-500 text-sm">
-                        {error}
-                    </p>
+                    <p className="mt-2 text-red-500 text-sm">{error}</p>
                 )}
 
                 <button

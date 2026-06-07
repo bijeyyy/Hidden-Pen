@@ -35,8 +35,8 @@ function UserSettings() {
     });
 
     const hiddenLink = username
-        ? `https://hiddenpen.app/u/${username}`
-        : "";
+    ? `${window.location.origin}/u/${username}`
+    : "";
 
     const applyTheme = (value) => {
         if (value) {
