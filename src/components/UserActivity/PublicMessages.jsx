@@ -19,38 +19,54 @@ function PublicMessagePage() {
         const loadReceiver = async () => {
             setLoading(true);
 
-            const { data: { user } } = await supabase.auth.getUser();
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+
             if (isMounted) setCurrentUser(user || null);
 
-            const { data, error } = await supabase
+            const { data: profile, error: profileError } = await supabase
                 .from("profiles")
                 .select("id, username, display_name, avatar_url")
                 .eq("username", username)
                 .single();
 
-            if (error || !data) {
+            if (profileError || !profile) {
+                console.error(profileError);
                 if (isMounted) setLoading(false);
                 return;
             }
 
-            if (isMounted) setReceiver(data);
+            if (isMounted) setReceiver(profile);
 
-            const { data: settings } = await supabase
+            const { data: settings, error: settingsError } = await supabase
                 .from("user_settings")
                 .select("allow_link_sharing, anon_messages")
-                .eq("user_id", data.id)
-                .single();
+                .eq("user_id", profile.id)
+                .maybeSingle();
 
-            if (isMounted) setReceiverSettings(settings);
-            if (isMounted) setLoading(false);
+            if (settingsError) {
+                console.error(settingsError);
+            }
+
+            if (isMounted) {
+                setReceiverSettings(
+                    settings || {
+                        allow_link_sharing: true,
+                        anon_messages: true,
+                    }
+                );
+                setLoading(false);
+            }
         };
 
         loadReceiver();
 
-        // 🔥 FIX: realtime auth session tracking
-        const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-            setCurrentUser(session?.user || null);
-        });
+        const { data: listener } = supabase.auth.onAuthStateChange(
+            (_event, session) => {
+                setCurrentUser(session?.user || null);
+            }
+        );
 
         return () => {
             isMounted = false;
@@ -59,9 +75,9 @@ function PublicMessagePage() {
     }, [username]);
 
     const sendMessage = async () => {
-        if (!message.trim() || !receiver) return;
-
         setError("");
+
+        if (!message.trim() || !receiver) return;
 
         if (!receiverSettings?.allow_link_sharing) {
             setError("This user is not accepting messages right now.");
@@ -69,28 +85,29 @@ function PublicMessagePage() {
         }
 
         if (!receiverSettings?.anon_messages && !currentUser) {
-            setError("This user only accepts messages from logged-in users. Please log in to send a message.");
+            setError(
+                "This user only accepts messages from logged-in users. Please log in."
+            );
             return;
         }
 
-        const { error: insertError } = await supabase
-            .from("messages")
-            .insert({
-                receiver_id: receiver.id,
-                message: message.trim(),
-                sender_id: currentUser?.id || null,
-            });
+        const { error: insertError } = await supabase.from("messages").insert({
+            receiver_id: receiver.id,
+            message: message.trim(),
+            sender_id: currentUser?.id || null,
+        });
 
-        if (!insertError) {
-            setMessage("");
-            setSent(true);
-        } else {
-            setError("Something went wrong. Please try again.");
+        if (insertError) {
+            console.error("Insert Error:", insertError);
+            setError(insertError.message || "Failed to send message.");
+            return;
         }
+
+        setMessage("");
+        setSent(true);
     };
 
     if (loading) return <p>Loading...</p>;
-
     if (!receiver) return <p>User not found.</p>;
 
     if (receiverSettings && !receiverSettings.allow_link_sharing) {
@@ -111,14 +128,13 @@ function PublicMessagePage() {
     return (
         <div className="min-h-screen flex items-center justify-center px-6">
             <div className="w-full max-w-md bg-card border border-default rounded-base p-6">
-
                 <h1 className="text-2xl font-semibold mb-2">
                     Send a message to {receiver.display_name}
                 </h1>
 
                 {!receiverSettings?.anon_messages && !currentUser && (
                     <p className="text-amber-500 text-sm mt-2 mb-4">
-                        This user requires you to be logged in to send a message.
+                        This user requires login before sending messages.
                     </p>
                 )}
 
@@ -128,7 +144,9 @@ function PublicMessagePage() {
                     className="w-full border rounded-base p-3 mt-4"
                     rows="5"
                     placeholder="Write your message..."
-                    disabled={!receiverSettings?.anon_messages && !currentUser}
+                    disabled={
+                        !receiverSettings?.anon_messages && !currentUser
+                    }
                 />
 
                 {error && (
