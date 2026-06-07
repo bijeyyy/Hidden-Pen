@@ -16,13 +16,15 @@ function User_Dashboard() {
     const [unreadCount, setUnreadCount] = useState(0);
     const [todayCount, setTodayCount] = useState(0);
     const [recentMessages, setRecentMessages] = useState([]);
+    const [favoriteMessages, setFavoriteMessages] = useState([]);
+    const [favoriteCount, setFavoriteCount] = useState(0);
+    const [settings, setSettings] = useState({ allow_link_sharing: true });
     {/* NOTIFICATIONS */ }
     const [isnotification, setNotification] = useState(false);
     const [notifications, setNotifications] = useState([]);
 
     {/* SOCIALS */ }
     const [copied, setCopied] = useState(false);
-    const [shareModalOpen, setShareModalOpen] = useState(false);
     const handleCopyLink = async () => {
         if (!hiddenLink) return;
 
@@ -33,58 +35,6 @@ function User_Dashboard() {
         setTimeout(() => {
             setCopied(false);
         }, 2000);
-    };
-
-    {/* FACEBOOK SHARE */ }
-    const shareFacebook = () => {
-        if (!hiddenLink) return;
-
-        window.open(
-            'https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(hiddenLink)}',
-            "_blank"
-        );
-    };
-
-    {/* TWITTER SHARE */ }
-    const shareX = () => {
-        window.open(
-            `https://twitter.com/intent/tweet?text=${encodeURIComponent(
-                "Send me anonymous messages 👀 " + hiddenLink
-            )}`,
-            "_blank"
-        );
-    };
-
-    {/* WHATSAPP SHARE */ }
-    const shareWhatsapp = () => {
-        window.open(
-            `https://wa.me/?text=${encodeURIComponent(
-                "Send me anonymous messages 👀 " + hiddenLink
-            )}`,
-            "_blank"
-        );
-    };
-
-    {/* INSTAGRAM SHARE */ }
-    const shareInstagram = async () => {
-        await navigator.clipboard.writeText(hiddenLink);
-        alert("Link copied! Paste it into your Instagram Story.");
-    };
-
-    {/* TIKTOK SHARE */ }
-    const shareTikTok = async () => {
-        await navigator.clipboard.writeText(hiddenLink);
-        alert("Link copied! Paste it into your TikTok post.");
-    };
-
-    const nativeShare = async () => {
-        if (navigator.share) {
-            await navigator.share({
-                title: "Hidden Pen",
-                text: "Send me anonymous messages 👀",
-                url: hiddenLink
-            });
-        }
     };
 
     const createProfileAndSettings = async (user) => {
@@ -141,7 +91,6 @@ function User_Dashboard() {
         }
 
         const messages = data || [];
-
         const today = new Date();
         const todayDate = today.toDateString();
 
@@ -150,13 +99,23 @@ function User_Dashboard() {
             return messageDate === todayDate;
         });
 
+        const unreadMessages = messages.filter((msg) => !msg.is_read);
+
+        const lovedMessages = messages
+            .filter((msg) => msg.is_loved)
+            .sort((a, b) => new Date(a.loved_at) - new Date(b.loved_at));
+
         setMessageCount(messages.length);
         setUnreadCount(messages.filter((msg) => !msg.is_read).length);
         setTodayCount(todayMessages.length);
+
         setRecentMessages(messages.slice(0, 3));
+        setFavoriteMessages(lovedMessages.slice(0, 3));
+        setFavoriteCount(lovedMessages.length);
 
         setNotifications(
-            messages
+
+            unreadMessages
                 .filter((msg) => !msg.is_read)
                 .slice(0, 5)
                 .map((msg) => ({
@@ -165,6 +124,19 @@ function User_Dashboard() {
                     time: new Date(msg.created_at).toLocaleString(),
                 }))
         );
+    };
+
+    const markNotificationsAsRead = async (messageIds) => {
+        if (messageIds.length === 0) return;
+
+        const { error } = await supabase
+            .from("messages")
+            .update({ is_read: true })
+            .in("id", messageIds);
+
+        if (error) {
+            console.error("Mark as read error:", error);
+        }
     };
 
     useEffect(() => {
@@ -208,6 +180,14 @@ function User_Dashboard() {
             setHiddenLink(`${window.location.origin}/u/${profile.username}`);
 
             await loadDashboardMessages(session.user.id);
+
+            const { data: settingsData } = await supabase
+                .from("user_settings")
+                .select("allow_link_sharing")
+                .eq("user_id", session.user.id)
+                .single();
+
+            if (settingsData) setSettings(settingsData);
         };
 
         checkUser();
@@ -232,9 +212,17 @@ function User_Dashboard() {
                     <div className="relative flex items-center md:order-2 gap-8">
                         <button
                             type="button"
-                            onClick={() =>
-                                setNotification(!isnotification)
-                            }
+                            onClick={async () => {
+                                const opening = !isnotification;
+                                setNotification(opening);
+
+                                if (opening && notifications.length > 0) {
+                                    const ids = notifications.map((n) => n.id);
+                                    await markNotificationsAsRead(ids);
+                                    setUnreadCount(0);
+                                    setNotifications([]);
+                                }
+                            }}
                             className="relative inline-flex items-center justify-center w-10 h-10">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-7 text-primary cursor-pointer">
                                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
@@ -403,12 +391,16 @@ function User_Dashboard() {
                             </h5>
 
                             <p className="text-body mb-4">
-                                Let people send you secrets, confessions, or compliments
+                                {settings.allow_link_sharing
+                                    ? "let people send you secrets, confessions, or compliments"
+                                    : "Your link is paused - no one can message you right now"}
                             </p>
 
-                            <div className="bg-white border border-default rounded-base p-3 mb-4">
+                            <div className="bg-bg border border-default rounded-base p-3 mb-4">
                                 <p className="text-sm text-text-secondary break-all">
-                                    {hiddenLink || "Creating you link..."}
+                                    {settings.allow_link_sharing
+                                        ? (hiddenLink || "Creating your link...")
+                                        : "Link is currently disabled"}
                                 </p>
                             </div>
 
@@ -416,16 +408,10 @@ function User_Dashboard() {
 
                                 <button
                                     onClick={handleCopyLink}
-                                    className="text-white md:w-1/4 w-1/2 bg-button hover:bg-button-hover text-sm px-4 py-2 rounded-base transition cursor-pointer"
+                                    disabled={!settings.allow_link_sharing}
+                                    className="text-white md:w-1/4 w-1/2 bg-button hover:bg-button-hover text-sm px-4 py-2 rounded-base transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {copied ? "✓ Link Copied" : "Copy Link"}
-                                </button>
-
-                                <button
-                                    onClick={() => setShareModalOpen(true)}
-                                    className="md:w-1/5 w-1/3 text-main border border-border hover:bg-hover text-sm px-4 py-2 rounded-base cursor-pointer"
-                                >
-                                    Share
                                 </button>
 
                             </div>
@@ -434,21 +420,37 @@ function User_Dashboard() {
 
                         {/* LOVED MESSAGES */}
                         <div className="bg-card p-6 border border-default rounded-base shadow-xs">
-
                             <div className="flex items-center justify-between mb-4">
                                 <h5 className="text-xl font-semibold text-heading">
                                     Loved Messages ❤️
                                 </h5>
 
                                 <span className="text-sm text-primary-hover font-medium">
-                                    0 Saved
+                                    {favoriteCount} Loved
                                 </span>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                                <p className="text-sm text-gray-400 col-span-3">
-                                    No saved messages yet.
-                                </p>
+                                {favoriteMessages.length === 0 ? (
+                                    <p className="text-sm text-gray-400 col-span-3">
+                                        No saved messages yet.
+                                    </p>
+                                ) : (
+                                    favoriteMessages.map((msg) => (
+                                        <div
+                                            key={msg.id}
+                                            className="border border-default rounded-base p-4 bg-bg"
+                                        >
+                                            <p className="text-sm text-text-primary line-clamp-3">
+                                                {msg.message}
+                                            </p>
+
+                                            <p className="text-xs text-gray-400 mt-3">
+                                                {new Date(msg.created_at).toLocaleString()}
+                                            </p>
+                                        </div>
+                                    ))
+                                )}
                             </div>
 
                             <Link to="/user_favorites">
@@ -456,7 +458,6 @@ function User_Dashboard() {
                                     View All Favorites
                                 </button>
                             </Link>
-
                         </div>
 
                     </div>
@@ -530,7 +531,7 @@ function User_Dashboard() {
                                     recentMessages.map((msg) => (
                                         <div
                                             key={msg.id}
-                                            className="border border-default rounded-base p-3 bg-white"
+                                            className="border border-default rounded-base p-3 bg-bg"
                                         >
                                             <p className="text-sm text-text-primary line-clamp-2">
                                                 {msg.message}
@@ -551,97 +552,6 @@ function User_Dashboard() {
                 </div>
 
             </div>
-
-
-            {/* SHARE MODAL */}
-            {shareModalOpen && (
-                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-
-                    <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md">
-
-                        <div className="flex items-center justify-between mb-6">
-
-                            <h2 className="text-xl font-semibold">
-                                Share your link
-                            </h2>
-
-                            <button
-                                onClick={() => setShareModalOpen(false)}
-                                className="text-xl text-gray-400 hover:text-black"
-                            >
-                                ✕
-                            </button>
-
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-
-                            <button
-                                onClick={shareFacebook}
-                                className="border rounded-xl p-5 hover:bg-blue-50 transition"
-                            >
-                                📘
-                                <p className="mt-2 text-sm font-medium">
-                                    Facebook
-                                </p>
-                            </button>
-
-                            <button
-                                onClick={shareInstagram}
-                                className="border rounded-xl p-5 hover:bg-pink-50 transition"
-                            >
-                                📷
-                                <p className="mt-2 text-sm font-medium">
-                                    Instagram Story
-                                </p>
-                            </button>
-
-                            <button
-                                onClick={shareTikTok}
-                                className="border rounded-xl p-5 hover:bg-gray-100 transition"
-                            >
-                                🎵
-                                <p className="mt-2 text-sm font-medium">
-                                    TikTok
-                                </p>
-                            </button>
-
-                            <button
-                                onClick={shareWhatsapp}
-                                className="border rounded-xl p-5 hover:bg-green-50 transition"
-                            >
-                                🟢
-                                <p className="mt-2 text-sm font-medium">
-                                    WhatsApp
-                                </p>
-                            </button>
-
-                            <button
-                                onClick={shareX}
-                                className="border rounded-xl p-5 hover:bg-gray-100 transition"
-                            >
-                                🐦
-                                <p className="mt-2 text-sm font-medium">
-                                    X / Twitter
-                                </p>
-                            </button>
-
-                            <button
-                                onClick={nativeShare}
-                                className="border rounded-xl p-5 hover:bg-purple-50 transition"
-                            >
-                                📱
-                                <p className="mt-2 text-sm font-medium">
-                                    More Apps
-                                </p>
-                            </button>
-
-                        </div>
-
-                    </div>
-
-                </div>
-            )}
             {/* FOOTER */}
             <footer className="mt-16 border-t border-default py-6 text-center text-sm text-gray-400">
                 <p>© {new Date().getFullYear()} Hidden Pen. All rights reserved.</p>

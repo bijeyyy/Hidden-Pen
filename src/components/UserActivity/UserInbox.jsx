@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
 import {
     Squares2X2Icon,
@@ -7,12 +8,56 @@ import {
     ArchiveBoxIcon,
 } from "@heroicons/react/24/outline";
 
+function Toast({ toasts, removeToast }) {
+    return (
+        <div className="fixed bottom-5 right-5 z-[100] flex flex-col gap-2">
+            {toasts.map((toast) => (
+                <div
+                    key={toast.id}
+                    className="flex items-center w-full max-w-sm p-4 text-body bg-neutral-primary-soft rounded-base shadow-xs border border-default"
+                    role="alert"
+                >
+                    <svg className="w-5 h-5 text-fg-brand" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                        <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="m12 18-7 3 7-18 7 18-7-3Zm0 0v-5" />
+                    </svg>
+                    <div className="ms-2.5 text-sm border-s border-default ps-3.5">
+                        {toast.message}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => removeToast(toast.id)}
+                        className="ms-auto flex items-center justify-center text-body hover:text-heading bg-transparent box-border border border-transparent hover:bg-neutral-secondary-medium focus:ring-4 focus:ring-neutral-tertiary font-medium leading-5 rounded text-sm h-8 w-8 focus:outline-none"
+                        aria-label="Close"
+                    >
+                        <span className="sr-only">Close</span>
+                        <svg className="w-5 h-5" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24">
+                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18 17.94 6M18 18 6.06 6" />
+                        </svg>
+                    </button>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 function UserInbox() {
     const [activeTab, setActiveTab] = useState("all");
     const [selectedMessage, setSelectedMessage] = useState(null);
     const [messages, setMessages] = useState([]);
     const [loading, setLoading] = useState(true);
     const [deleteSuccess, setDeleteSuccess] = useState(false);
+
+    const [toasts, setToasts] = useState([]);
+
+    const showToast = (message) => {
+        const id = Date.now();
+        setToasts((prev) => [...prev, { id, message }]);
+        setTimeout(() => removeToast(id), 3000);
+    };
+
+    const removeToast = (id) => {
+        setToasts((prev) => prev.filter((t) => t.id !==id));
+    };
 
     const loadMessages = async () => {
         const {
@@ -59,40 +104,56 @@ function UserInbox() {
     };
 
     const toggleFavorite = async (msg) => {
+        const willBeLoved = !msg.is_loved;
+
         const { error } = await supabase
             .from("messages")
-            .update({ is_loved: !msg.is_loved })
+            .update({
+                is_loved: willBeLoved,
+                loved_at: willBeLoved ? new Date().toISOString() : null,
+            })
             .eq("id", msg.id);
 
-        if (!error) {
-            setMessages((prev) =>
-                prev.map((item) =>
-                    item.id === msg.id
-                        ? { ...item, is_loved: !item.is_loved }
-                        : item
-                )
-            );
-
-            if (selectedMessage?.id === msg.id) {
-                setSelectedMessage({
-                    ...selectedMessage,
-                    is_loved: !selectedMessage.is_loved,
-                });
-            }
+        if (error) {
+            console.error("Favorite update error:", error);
+            return;
         }
+
+        setMessages((prev) =>
+            prev.map((item) =>
+                item.id === msg.id
+                    ? {
+                        ...item,
+                        is_loved: willBeLoved,
+                        loved_at: willBeLoved ? new Date().toISOString() : null,
+                    }
+                    : item
+            )
+        );
+
+        if (selectedMessage?.id === msg.id) {
+            setSelectedMessage({
+                ...selectedMessage,
+                is_loved: willBeLoved,
+                loved_at: willBeLoved ? new Date().toISOString() : null,
+            });
+        }
+
+        showToast(willBeLoved ? "Message added to favorites." : "Message removed from favorites.");
     };
 
     const toggleArchive = async (msg) => {
+        const willBeArchived = !msg.is_archived;
         const { error } = await supabase
             .from("messages")
-            .update({ is_archived: !msg.is_archived })
+            .update({ is_archived: willBeArchived })
             .eq("id", msg.id);
 
         if (!error) {
             setMessages((prev) =>
                 prev.map((item) =>
                     item.id === msg.id
-                        ? { ...item, is_archived: !item.is_archived }
+                        ? { ...item, is_archived: willBeArchived }
                         : item
                 )
             );
@@ -100,9 +161,10 @@ function UserInbox() {
             if (selectedMessage?.id === msg.id) {
                 setSelectedMessage({
                     ...selectedMessage,
-                    is_archived: !selectedMessage.is_archived,
+                    is_archived: willBeArchived,
                 });
             }
+            showToast(willBeArchived ? "Message archived." : "Message unarchived.");
         }
     };
 
@@ -170,7 +232,7 @@ function UserInbox() {
                             onClick={() => setActiveTab(tab)}
                             className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap flex-shrink-0 ${activeTab === tab
                                 ? "bg-button text-white"
-                                : "border border-default hover:bg-neutral-primary-soft"
+                                : "border border-default hover:bg-bg"
                                 }`}
                         >
                             {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -202,7 +264,7 @@ function UserInbox() {
                                     setSelectedMessage(msg);
                                     if (!msg.is_read) markAsRead(msg.id);
                                 }}
-                                className="bg-white border border-default rounded-lg p-5 sm:p-6 shadow-sm cursor-pointer"
+                                className="bg-bg border border-border rounded-lg p-5 sm:p-6 shadow-sm cursor-pointer"
                             >
                                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-1 mb-3">
                                     <span className="text-xs text-gray-400">
@@ -224,7 +286,7 @@ function UserInbox() {
                                             e.stopPropagation();
                                             toggleFavorite(msg);
                                         }}
-                                        className="text-brand hover:underline"
+                                        className="text-button hover:underline cursor-pointer"
                                     >
                                         {msg.is_loved ? "Favorited" : "Favorite"}
                                     </button>
@@ -235,7 +297,7 @@ function UserInbox() {
                                                 e.stopPropagation();
                                                 markAsRead(msg.id);
                                             }}
-                                            className="text-gray-500 hover:underline"
+                                            className="text-gray-500 hover:underline cursor-pointer"
                                         >
                                             Mark as read
                                         </button>
@@ -246,7 +308,7 @@ function UserInbox() {
                                             e.stopPropagation();
                                             toggleArchive(msg);
                                         }}
-                                        className="text-gray-500 hover:underline"
+                                        className="text-gray-500 hover:underline cursor-pointer"
                                     >
                                         {msg.is_archived ? "Unarchive" : "Archive"}
                                     </button>
@@ -258,8 +320,8 @@ function UserInbox() {
             </div>
 
             {selectedMessage && (
-                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 relative">
+                <div className="fixed inset-0 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+                    <div className="bg-card rounded-xl shadow-xl max-w-lg w-full p-6 relative">
                         <button
                             onClick={() => setSelectedMessage(null)}
                             className="absolute top-4 right-4 text-gray-500 hover:text-black text-xl"
@@ -283,28 +345,28 @@ function UserInbox() {
                         <div className="flex flex-wrap gap-3">
                             <button
                                 onClick={() => toggleFavorite(selectedMessage)}
-                                className="px-4 py-2 rounded-lg bg-brand text-white hover:opacity-90"
+                                className="px-4 py-2 rounded-lg bg-button text-white hover:opacity-90 cursor-pointer"
                             >
                                 {selectedMessage.is_loved ? "Remove Favorite" : "Favorite"}
                             </button>
 
                             <button
                                 onClick={() => markAsRead(selectedMessage.id)}
-                                className="px-4 py-2 rounded-lg border border-default hover:bg-gray-100"
+                                className="px-4 py-2 rounded-lg border border-default hover:bg-gray-100 cursor-pointer"
                             >
                                 Mark as Read
                             </button>
 
                             <button
                                 onClick={() => toggleArchive(selectedMessage)}
-                                className="px-4 py-2 rounded-lg border border-default hover:bg-gray-100"
+                                className="px-4 py-2 rounded-lg border border-default hover:bg-gray-100 cursor-pointer"
                             >
                                 {selectedMessage.is_archived ? "Unarchive" : "Archive"}
                             </button>
 
                             <button
                                 onClick={() => deleteMessage(selectedMessage.id)}
-                                className="px-4 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50"
+                                className="px-4 py-2 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 cursor-pointer"
                             >
                                 Delete
                             </button>
@@ -333,6 +395,7 @@ function UserInbox() {
                     </div>
                 </div>
             )}
+            <Toast toasts={toasts} removeToast={removeToast} />
         </>
     );
 }

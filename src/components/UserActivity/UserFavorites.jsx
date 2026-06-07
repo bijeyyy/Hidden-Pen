@@ -1,9 +1,51 @@
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
+import { supabase } from "../../lib/SupabaseClient";
 
 function UserFavorites() {
 
-    // Sample data (palitan ito ng data mula sa Supabase)
-    const favoriteMessages = [];
+    const [favoriteMessages, setFavoriteMessages] = useState([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        const loadFavorites = async () => {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+
+            if (!session) {
+                setLoading(false);
+                return;
+            }
+
+            const { data, error } = await supabase
+                .from("messages")
+                .select("*")
+                .eq("receiver_id", session.user.id)
+                .eq("is_loved", true)
+                .order("created_at", { ascending: false });
+
+            if (error) {
+                console.error("Favorites error:", error);
+            } else {
+                setFavoriteMessages(data || []);
+            }
+
+            setLoading(false);
+        };
+
+        loadFavorites();
+    }, []);
+
+    if (loading) {
+        return (
+            <div className="max-w-4xl mx-auto py-8 px-6">
+                <p className="text-body">
+                    Loading favorites...
+                </p>
+            </div>
+        )
+    }
 
     return (
         <div className="max-w-4xl mx-auto py-8 px-6">
@@ -18,14 +60,14 @@ function UserFavorites() {
                 </h1>
 
                 <p className="mt-2 text-body">
-                    Your favorite messages are kept here.
+                    You have {favoriteMessages.length} favorite messages{favoriteMessages.length !== 1}.
                 </p>
             </div>
 
             {favoriteMessages.length === 0 ? (
 
                 /* Empty State */
-                <div className="bg-neutral-primary-soft border border-default rounded-base p-12 text-center shadow-xs">
+                <div className="bg-bg border border-border rounded-base p-12 text-center shadow-xs">
 
                     <div className="flex justify-center items-center text-6xl mb-4">
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="size-22">
@@ -58,7 +100,7 @@ function UserFavorites() {
 
                         <div
                             key={message.id}
-                            className="bg-white border border-default rounded-base p-5 shadow-xs hover:shadow-sm transition"
+                            className="bg-bg border border-border rounded-base p-5 shadow-xs hover:shadow-sm transition"
                         >
 
                             <div className="flex items-center justify-between mb-3">
@@ -68,16 +110,16 @@ function UserFavorites() {
                                 </span>
 
                                 <span className="text-sm text-body">
-                                    {message.date}
+                                    {new Date(message.created_at).toLocaleString()}
                                 </span>
 
                             </div>
 
                             <p className="text-body">
-                                {message.text}
+                                {message.message}
                             </p>
 
-                            <button className="mt-4 text-sm text-red-500 hover:underline">
+                            <button className="mt-4 text-sm text-red-500 hover:underline cursor-pointer">
                                 Remove from Favorites
                             </button>
 
