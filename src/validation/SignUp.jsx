@@ -22,7 +22,7 @@ function SignUp() {
         data: { 
           full_name: name 
         },
-        emailRedirectTo: 'http://localhost:5173/EmailConfirmed'
+        emailRedirectTo: '${window.location.origin}/EmailConfirmed'
        }
     });
     setLoading(false);
