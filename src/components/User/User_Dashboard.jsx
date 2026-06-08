@@ -21,7 +21,7 @@ function User_Dashboard() {
     const [favoriteCount, setFavoriteCount] = useState(0);
     const [sessionUser, setSessionUser] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
-    const [settings, setSettings] =useState({allow_link_sharing: true,});
+    const [settings, setSettings] = useState({allow_link_sharing: true,});
     {/* NOTIFICATIONS */ }
     const [isnotification, setNotification] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -405,40 +405,56 @@ function User_Dashboard() {
                         </div>
 
                         {/* HIDDEN LINK CARD */}
-                        <div className="bg-card p-6 border border-default rounded-base shadow-xs">
+<div className="bg-card p-6 border border-default rounded-base shadow-xs">
 
-                            <h5 className="mb-3 text-2xl font-semibold text-heading">
-                                Your Hidden Link
-                            </h5>
+    <h5 className="mb-3 text-2xl font-semibold text-heading">
+        Your Hidden Link
+    </h5>
 
-                            <p className="text-body mb-4">
-                                {settings.allow_link_sharing
-                                    ? "let people send you secrets, confessions, or compliments"
-                                    : "Your link is paused - no one can message you right now"}
-                            </p>
+    <p className="text-body mb-4">
+        {settings.allow_link_sharing
+            ? "let people send you secrets, confessions, or compliments"
+            : "Your link is paused - no one can message you right now"}
+    </p>
 
-                            <div className="bg-bg border border-default rounded-base p-3 mb-4">
-                                <p className="text-sm text-text-secondary break-all">
-                                    {settings.allow_link_sharing
-                                        ? (hiddenLink || "Creating your link...")
-                                        : "Link is currently disabled"}
-                                </p>
-                            </div>
+    {/* LINK DISPLAY */}
+    <div className="bg-bg border border-default rounded-base p-3 mb-4">
+        {settings.allow_link_sharing ? (
+            hiddenLink ? (
+                <a
+                    href={hiddenLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-text-light break-all underline hover:opacity-80"
+                >
+                    {hiddenLink}
+                </a>
+            ) : (
+                <p className="text-sm text-text-secondary">
+                    Creating your link...
+                </p>
+            )
+        ) : (
+            <p className="text-sm text-text-secondary">
+                Link is currently disabled
+            </p>
+        )}
+    </div>
 
-                            <div className="flex flex-wrap gap-2">
+    {/* ACTION BUTTON */}
+    <div className="flex flex-wrap gap-2">
 
-                                <button
-                                    onClick={handleCopyLink}
-                                    disabled={!settings.allow_link_sharing}
-                                    className="text-white md:w-1/4 w-1/2 bg-button hover:bg-button-hover text-sm px-4 py-2 rounded-base transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-                                >
-                                    {copied ? "✓ Link Copied" : "Copy Link"}
-                                </button>
+        <button
+            onClick={handleCopyLink}
+            disabled={!settings.allow_link_sharing || !hiddenLink}
+            className="text-white md:w-1/4 w-1/2 bg-button hover:bg-button-hover text-sm px-4 py-2 rounded-base transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+        >
+            {copied ? "✓ Link Copied" : "Copy Link"}
+        </button>
 
-                            </div>
+    </div>
 
-                        </div>
-
+</div>
                         {/* LOVED MESSAGES */}
                         <div className="bg-card p-6 border border-default rounded-base shadow-xs">
                             <div className="flex items-center justify-between mb-4">
