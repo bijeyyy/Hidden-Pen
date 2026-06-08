@@ -22,7 +22,7 @@ function SignUp() {
         data: { 
           full_name: name 
         },
-        emailRedirectTo: '${window.location.origin}/EmailConfirmed'
+        emailRedirectTo: `${window.location.origin}/EmailConfirmed`
        }
     });
     setLoading(false);
@@ -36,7 +36,7 @@ function SignUp() {
   const handleGoogle = async () => {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin + '/User_Dashboard' }
+      options: { redirectTo: window.location.origin + '/user_dashboard' }
     });
     if (error) setError(error.message);
   };

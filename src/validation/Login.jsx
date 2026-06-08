@@ -13,7 +13,7 @@ function Login() {
   useEffect(() => {
     const getSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) navigate('/User_Dashboard');
+      if (session) navigate('/user_dashboard');
     };
     getSession();
   }, [navigate]);
