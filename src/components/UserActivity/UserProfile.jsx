@@ -224,7 +224,7 @@ function UserProfile() {
       href={hiddenLink}
       target="_blank"
       rel="noopener noreferrer"
-      className="text-sm text-primary break-all underline"
+      className="text-sm text-text-light break-all underline"
     >
       {hiddenLink}
     </a>
