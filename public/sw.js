@@ -1,21 +1,15 @@
-// ============================================================
-// [BAGO] sw.js — Service Worker para sa Web Push Notifications
-// Ilagay ito sa /public/sw.js ng iyong project
-// ============================================================
-
 self.addEventListener("push", (event) => {
-    // [BAGO] Kunin ang data mula sa push notification
     const data = event.data?.json() ?? {};
 
     const title = data.title || "HiddenPen";
     const options = {
         body: data.body || "You have a new anonymous message!",
-        icon: "/icon.png", // palitan ng icon path mo
-        badge: "/badge.png", // optional badge icon
-        tag: "hiddenpen-message", // para hindi mag-stack ang notifications
-        renotify: true, // mag-notify ulit kahit same tag
+        icon: "/icon.png", 
+        badge: "/badge.png", 
+        tag: "hiddenpen-message", 
+        renotify: true, 
         data: {
-            url: data.url || "/user_inbox", // URL na bubuksan pag na-click ang notif
+            url: data.url || "/user_inbox", 
         },
     };
 
@@ -24,7 +18,6 @@ self.addEventListener("push", (event) => {
     );
 });
 
-// [BAGO] Pag na-click ang notification, buksan ang inbox
 self.addEventListener("notificationclick", (event) => {
     event.notification.close();
 

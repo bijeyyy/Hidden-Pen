@@ -81,9 +81,13 @@ function User_Dashboard() {
     const loadDashboardMessages = async (userId) => {
         const { data, error } = await supabase
             .from("messages")
-            .select("*")
-            .eq("receiver_id", userId)
-            .order("created_at", { ascending: false });
+            .select(`
+                *,
+                message_reads (
+                id,
+                user_id
+                )
+            `)
 
         if (error) {
             console.error("Dashboard messages error:", error);
@@ -99,14 +103,19 @@ function User_Dashboard() {
             return messageDate === todayDate;
         });
 
-        const unreadMessages = messages.filter((msg) => !msg.is_read);
+        const unreadMessages = messages.filter(
+            (msg) => 
+                !msg.message_reads?.some(
+                    (read) => read.user_id === userId
+                )
+        );
 
         const lovedMessages = messages
             .filter((msg) => msg.is_loved)
             .sort((a, b) => new Date(a.loved_at) - new Date(b.loved_at));
 
         setMessageCount(messages.length);
-        setUnreadCount(messages.filter((msg) => !msg.is_read).length);
+        setUnreadCount(messages.filter((msg) => !message_reads).length);
         setTodayCount(todayMessages.length);
 
         setRecentMessages(messages.slice(0, 3));
@@ -116,7 +125,7 @@ function User_Dashboard() {
         setNotifications(
 
             unreadMessages
-                .filter((msg) => !msg.is_read)
+                .filter((msg) => !message_reads)
                 .slice(0, 5)
                 .map((msg) => ({
                     id: msg.id,
@@ -126,16 +135,22 @@ function User_Dashboard() {
         );
     };
 
-    const markNotificationsAsRead = async (messageIds) => {
-        if (messageIds.length === 0) return;
+    const markNotificationsAsRead = async (messageIds, userId) => {
+        if (!messageIds.length) return;
+
+        const row = messageIds.map((messageId) => ({
+            message_id: messageId,
+            user_id: userId,
+        }));
 
         const { error } = await supabase
-            .from("messages")
-            .update({ is_read: true })
-            .in("id", messageIds);
+            .from("message_reads")
+            .upsert(rows, {
+                onConflict: "message_id,user_id",
+            });
 
         if (error) {
-            console.error("Mark as read error:", error);
+            console.error(error);
         }
     };
 
@@ -218,7 +233,7 @@ function User_Dashboard() {
 
                                 if (opening && notifications.length > 0) {
                                     const ids = notifications.map((n) => n.id);
-                                    await markNotificationsAsRead(ids);
+                                    await markNotificationsAsRead(ids, session.user.id);
                                     setUnreadCount(0);
                                     setNotifications([]);
                                 }

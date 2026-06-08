@@ -89,17 +89,35 @@ function PublicMessagePage() {
             return;
         }
 
-        const { error: insertError } = await supabase.from("messages").insert({
-            receiver_id: receiver.id,
-            message: message.trim(),
-
-            sender_id: currentUser?.id ?? null,
+        const { error: insertError } = await supabase
+            .from("messages")
+            .insert({
+                receiver_id: receiver.id,
+                message: message.trim(),
+                sender_id: currentUser?.id ?? null,
         });
 
         if (insertError) {
-            console.error("Insert Error:", insertError);
+            console.error(insertError);
             setError(insertError.message);
             return;
+        }
+
+        const { data: settings } = await supabase
+            .from("user_settings")
+            .select("msg_notifications")
+            .eq("user_id", receiver.id)
+            .single();
+
+        if (settings?.msg_notifications) {
+            await supabase.functions.invoke("send-push", {
+                body: {
+                    receiver_id: receiver.id,
+                    title: "New Message",
+                    body: "You received a new anonymous message",
+                    url: "/user_inbox"
+                },
+            });
         }
 
         setMessage("");

@@ -148,9 +148,18 @@ function UserSettings() {
         try {
             const reg = await navigator.serviceWorker.register("/sw.js");
             const existing = await reg.pushManager.getSubscription();
-            if (existing) return existing;
+            if (existing) {
+                await supabase
+                    .from("push_subscriptions")
+                    .upsert({
+                        user_id: userId,
+                        subscription: JSON.stringify(existing),
+                    });
 
-            const subscription = await reg.pushManager.getSubscription({
+                return existing;
+            }
+
+            const subscription = await reg.pushManager.subscribe({
                 userVisibleOnly: true,
                 applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
             });
@@ -170,10 +179,12 @@ function UserSettings() {
         try {
             const reg = await navigator.serviceWorker.getRegistration("/sw.js");
             const sub = await reg?.pushManager.getSubscription();
-            if (sub) await sub, unsubscribe();
+            if (sub) {
+                await sub.unsubscribe();
+            }
 
             await supabase
-                .from("push_notifications")
+                .from("push_subscriptions")
                 .delete()
                 .eq("user_id", userId);
         } catch (err) {
