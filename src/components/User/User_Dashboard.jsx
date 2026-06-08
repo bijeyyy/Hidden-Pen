@@ -21,6 +21,7 @@ function User_Dashboard() {
     const [favoriteCount, setFavoriteCount] = useState(0);
     const [sessionUser, setSessionUser] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
+    const [settings, setSettings] =useState({allow_link_sharing: true,});
     {/* NOTIFICATIONS */ }
     const [isnotification, setNotification] = useState(false);
     const [notifications, setNotifications] = useState([]);
