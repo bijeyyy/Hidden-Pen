@@ -439,14 +439,14 @@ function UserInbox() {
 
                             <button
                                 onClick={() => markAsRead(selectedMessage.id)}
-                                className="px-4 py-2 rounded-lg border border-default hover:bg-gray-100 cursor-pointer"
+                                className="px-4 py-2 rounded-lg border border-default hover:bg-bg cursor-pointer"
                             >
                                 Mark as Read
                             </button>
 
                             <button
                                 onClick={() => toggleArchive(selectedMessage)}
-                                className="px-4 py-2 rounded-lg border border-default hover:bg-gray-100 cursor-pointer"
+                                className="px-4 py-2 rounded-lg border border-default hover:bg-bg cursor-pointer"
                             >
                                 {selectedMessage.is_archived ? "Unarchive" : "Archive"}
                             </button>
@@ -465,7 +465,7 @@ function UserInbox() {
             {deleteSuccess && (
                 <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 text-center">
-                        <h2 className="text-xl font-semibold text-text-primary mb-2">
+                        <h2 className="text-button text-xl font-semibold text-text-primary mb-2">
                             Message Deleted
                         </h2>
 
