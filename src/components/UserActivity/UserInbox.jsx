@@ -87,6 +87,21 @@ function UserInbox() {
             return;
         }
 
+        if (data?.length) {
+            await supabase
+                .from("message_reads")
+                .upsert(
+                    data.map(msg => ({
+                        message_id: msg.id,
+                        user_id: userId,
+                        raed_at: new Date().toISOString()
+                    })),
+                    {
+                        onConflict: "message_id,user_id"
+                    }
+                );
+        }
+
         const { data: reads } = await supabase
             .from("message_reads")
             .select("message_id")

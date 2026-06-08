@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
 import User from "../../assets/user_logo.png";
 import Notif from "../../assets/notification.png";
+import { createWebSocketModuleRunnerTransport } from "vite/module-runner";
 
 function User_Dashboard() {
     const navigate = useNavigate();
@@ -18,7 +19,8 @@ function User_Dashboard() {
     const [recentMessages, setRecentMessages] = useState([]);
     const [favoriteMessages, setFavoriteMessages] = useState([]);
     const [favoriteCount, setFavoriteCount] = useState(0);
-    const [settings, setSettings] = useState({ allow_link_sharing: true });
+    const [sessionUser, setSessionUser] = useState(null);
+    const [currentUser, setCurrentUser] = useState(null);
     {/* NOTIFICATIONS */ }
     const [isnotification, setNotification] = useState(false);
     const [notifications, setNotifications] = useState([]);
@@ -84,10 +86,11 @@ function User_Dashboard() {
             .select(`
                 *,
                 message_reads (
-                id,
-                user_id
+                    user_id
                 )
             `)
+            .eq("receiver_id", userId)
+            .order("created_at", { ascending: false }); 
 
         if (error) {
             console.error("Dashboard messages error:", error);
@@ -115,7 +118,7 @@ function User_Dashboard() {
             .sort((a, b) => new Date(a.loved_at) - new Date(b.loved_at));
 
         setMessageCount(messages.length);
-        setUnreadCount(messages.filter((msg) => !message_reads).length);
+        setUnreadCount(unreadMessages.length);
         setTodayCount(todayMessages.length);
 
         setRecentMessages(messages.slice(0, 3));
@@ -125,7 +128,6 @@ function User_Dashboard() {
         setNotifications(
 
             unreadMessages
-                .filter((msg) => !message_reads)
                 .slice(0, 5)
                 .map((msg) => ({
                     id: msg.id,
@@ -160,11 +162,14 @@ function User_Dashboard() {
                 data: { session },
             } = await supabase.auth.getSession();
 
+            setCurrentUser(session.user);
+
             if (!session) {
                 navigate("/Login");
                 return;
             }
 
+            setSessionUser(session.user);
             setUserEmail(session.user.email);
 
             setDisplayName(
@@ -233,7 +238,7 @@ function User_Dashboard() {
 
                                 if (opening && notifications.length > 0) {
                                     const ids = notifications.map((n) => n.id);
-                                    await markNotificationsAsRead(ids, session.user.id);
+                                    await markNotificationsAsRead(ids, sessionUser.id);
                                     setUnreadCount(0);
                                     setNotifications([]);
                                 }
