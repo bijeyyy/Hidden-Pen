@@ -764,81 +764,6 @@ function UserInbox() {
 
                         <div className="overflow-y-auto flex-1 px-6 py-5">
 
-                            <div
-                                ref={shareRef}
-                                data-share="card"
-                                className="bg-white rounded-2xl overflow-hidden"
-                                style={{
-                                    width: "480px",
-                                    position: "absolute",
-                                    top: "0",
-                                    left: "-9999px",
-                                    visibility: "hidden",
-                                    pointerEvents: "none",
-                                    zIndex: -1,
-                                    fontFamily: "'Inter', sans-serif",
-                                }}
-                            >
-                                {/* Header */}
-                                <div className="flex flex-col items-center gap-2 px-8 pt-8 pb-5 border-b border-[#E5E7EB]">
-                                    <div className="w-10 h-10 rounded-full bg-[#FCE4EF] flex items-center justify-center">
-                                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EC5FA6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                                        </svg>
-                                    </div>
-                                    <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "15px", fontWeight: 600, color: "#1F2937", margin: 0 }}>
-                                        Hidden Pen
-                                    </p>
-                                    <span style={{
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: "4px",
-                                        fontSize: "11px",
-                                        background: "#FCE4EF",
-                                        color: "#D94D95",
-                                        padding: "3px 12px",
-                                        borderRadius: "999px",
-                                        fontFamily: "'Poppins', sans-serif",
-                                        fontWeight: 500,
-                                    }}>
-                                        anonymous message
-                                    </span>
-                                </div>
-
-                                <div className="px-8 py-6">
-                                    <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
-                                        Message
-                                    </p>
-                                    <div style={{ background: "#F7F7F9", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", marginBottom: "16px" }}>
-                                        <p style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#1F2937", margin: 0, whiteSpace: "pre-wrap" }}>
-                                            {selectedMessage.message}
-                                        </p>
-                                    </div>
-
-                                    {selectedMessageReplies?.length > 0 && (
-                                        <>
-                                            <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
-                                                Your reply
-                                            </p>
-                                            <div style={{ background: "#FFFFFF", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", borderLeft: "3px solid #EC5FA6" }}>
-                                                {selectedMessageReplies.map((r) => (
-                                                    <p key={r.id} style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#374151", margin: 0, marginBottom: "8px", whiteSpace: "pre-wrap" }}>
-                                                        {r.reply}
-                                                    </p>
-                                                ))}
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-
-                                <div style={{ padding: "12px 32px 24px", display: "flex", justifyContent: "center" }}>
-                                    <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "11px", color: "#9CA3AF", margin: 0 }}>
-                                        hidden-pen-web.vercel.app
-                                    </p>
-                                </div>
-                            </div>
-
                             <div className="flex flex-wrap gap-2 mb-5">
                                 <button
                                     onClick={() => toggleFavorite(selectedMessage)}
@@ -1027,6 +952,83 @@ function UserInbox() {
                         </button>
                     </div>
                 </div>
+            )}
+
+            {selectedMessage && (
+            <div
+                ref={shareRef}
+                data-share="card"
+                className="bg-white rounded-2xl overflow-hidden"
+                style={{
+                    width: "480px",
+                    position: "fixed",
+                    top: "0",
+                    left: "-9999px",
+                    visibility: "hidden",
+                    pointerEvents: "none",
+                    zIndex: -1,
+                    fontFamily: "'Inter', sans-serif",
+                }}
+            >
+                {/* Header */}
+                <div className="flex flex-col items-center gap-2 px-8 pt-8 pb-5 border-b border-[#E5E7EB]">
+                    <div className="w-10 h-10 rounded-full bg-[#FCE4EF] flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EC5FA6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                        </svg>
+                    </div>
+                    <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "15px", fontWeight: 600, color: "#1F2937", margin: 0 }}>
+                        Hidden Pen
+                    </p>
+                    <span style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "11px",
+                        background: "#FCE4EF",
+                        color: "#D94D95",
+                        padding: "3px 12px",
+                        borderRadius: "999px",
+                        fontFamily: "'Poppins', sans-serif",
+                        fontWeight: 500,
+                    }}>
+                        anonymous message
+                    </span>
+                </div>
+
+                <div className="px-8 py-6">
+                    <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
+                        Message
+                    </p>
+                    <div style={{ background: "#F7F7F9", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", marginBottom: "16px" }}>
+                        <p style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#1F2937", margin: 0, whiteSpace: "pre-wrap" }}>
+                            {selectedMessage?.message}
+                        </p>
+                    </div>
+
+                    {selectedMessageReplies?.length > 0 && (
+                        <>
+                            <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
+                                Your reply
+                            </p>
+                            <div style={{ background: "#FFFFFF", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", borderLeft: "3px solid #EC5FA6" }}>
+                                {selectedMessageReplies.map((r) => (
+                                    <p key={r.id} style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#374151", margin: 0, marginBottom: "8px", whiteSpace: "pre-wrap" }}>
+                                        {r.reply}
+                                    </p>
+                                ))}
+                            </div>
+                        </>
+                    )}
+                </div>
+
+                <div style={{ padding: "12px 32px 24px", display: "flex", justifyContent: "center" }}>
+                    <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "11px", color: "#9CA3AF", margin: 0 }}>
+                        hidden-pen-web.vercel.app
+                    </p>
+                </div>
+            </div>
             )}
 
             <Toast toasts={toasts} removeToast={removeToast} />
