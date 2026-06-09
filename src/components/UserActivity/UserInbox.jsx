@@ -430,7 +430,7 @@ function UserInbox() {
         node.style.willChange = "auto";
 
         await document.fonts.ready;
-        
+
         const rect = node.getBoundingClientReact();
 
         const canvas = await html2canvas(shareRef.current, {
@@ -438,11 +438,17 @@ function UserInbox() {
             backgroundColor: "#ffffff",
             useCORS: true,
             allowTaint: false,
-            
-            width: rect.width,
-            height: rect.height,
-            windowWidth: rect.width,
-            windowHeight: rect.height,
+
+            onclone: (doc) => {
+                const el = doc.querySelector('[data-share="card"]');
+                if (el) {
+                    el.style.width = "480px";
+                    el.style.maxWidth = "480px";
+                    el.style.minWidth = "480px";
+                    el.style.transform = "none";
+                    el.style.flexShrink = "0";
+                }
+            }
         });
 
         return canvas.toDataURL("image/png");
@@ -710,9 +716,10 @@ function UserInbox() {
 
                             <div
                                 ref={shareRef}
+                                data-share="card"
                                 className="bg-white rounded-2xl overflow-hidden"
                                 style={{
-                                    width: `${exportWidth}px`,
+                                    width: "480px",
                                     position: "fixed",
                                     top: "0",
                                     left: "-99999px",
