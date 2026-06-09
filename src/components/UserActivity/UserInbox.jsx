@@ -419,60 +419,59 @@ function UserInbox() {
     };
 
     const generateShareImage = async () => {
-        if (!shareRef.current) {
-            showToast("Share card not ready yet.");
-            return;
-        }
+    if (!shareRef.current) {
+        showToast("Share card not ready yet.");
+        return;
+    }
 
-        const node = shareRef.current;
+    const original = shareRef.current;
+    const clone = original.cloneNode(true);
 
-        node.style.position = "fixed";
-        node.style.top = "0";
-        node.style.left = "0";
-        node.style.width = "480px";
-        node.style.minWidth = "480px";
-        node.style.maxWidth = "480px";
-        node.style.zIndex = "9999";
-        node.style.transform = "scale(1)";
-        node.style.visibility = "hidden";
+    const wrapper = document.createElement("div");
+    wrapper.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 480px;
+        min-width: 480px;
+        max-width: 480px;
+        z-index: 99999;
+        opacity: 0;
+        pointer-events: none;
+        overflow: visible;
+    `;
 
-        await document.fonts.ready;
+    clone.style.cssText = `
+        position: relative;
+        width: 480px;
+        min-width: 480px;
+        max-width: 480px;
+        transform: none;
+        font-family: 'Inter', sans-serif;
+    `;
 
-        await new Promise((resolve) => setTimeout(resolve, 100));
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
 
-        const canvas = await html2canvas(shareRef.current, {
-            scale: 3,
-            backgroundColor: "#ffffff",
-            useCORS: true,
-            allowTaint: false,
-            width: 480,
-            height: node.scrollHeight,
-            windowWidth: 1200,
+    await document.fonts.ready;
+    await new Promise((r) => setTimeout(r, 200));
 
-            onclone: (doc) => {
-                const el = doc.querySelector('[data-share="card"]');
-                if (el) {
-                    el.style.position = "fixed";
-                    el.style.top = "0";
-                    el.style.left = "0";
-                    el.style.width = "480px";
-                    el.style.minWidth = "480px";
-                    el.style.maxWidth = "480px";
-                    el.style.transform = "none";
-                    el.style.visibility = "visible";
-                    el.style.zIndex = "9999";
-                }
-            }
-        });
+    const canvas = await html2canvas(clone, {
+        scale: 3,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+        allowTaint: false,
+        width: 480,
+        height: clone.scrollHeight,
+        windowWidth: 1440,
+        x: 0,
+        y: 0,
+    });
 
-        node.style.position = "fixed";
-        node.style.top = "0";
-        node.style.left = "-99999px";
-        node.style.visibility = "";
-        node.style.zIndex = "-1";
+    document.body.removeChild(wrapper);
 
-        return canvas.toDataURL("image/png");
-    };
+    return canvas.toDataURL("image/png");
+};
 
     const downloadShareImage = async () => {
         console.log("clicked");
