@@ -424,27 +424,30 @@ function UserInbox() {
             return;
         }
 
-        const node = shareRef.current;
-
-        node.style.transform = "scale(1)";
-        node.style.willChange = "auto";
+        node.style.position = "fixed";
+        node.style.left = "-99999px";
+        node.style.width = "480px";
+        node.style.minWidth = "480px";
+        node.style.maxWidth = "480px";
 
         await document.fonts.ready;
-
-        const rect = node.getBoundingClientReact();
 
         const canvas = await html2canvas(shareRef.current, {
             scale: 3,
             backgroundColor: "#ffffff",
             useCORS: true,
             allowTaint: false,
+            width: 480,
+            windowWidth: 1200,
 
             onclone: (doc) => {
                 const el = doc.querySelector('[data-share="card"]');
                 if (el) {
+                    l.style.position = "fixed";
+                    el.style.left = "-99999px";
                     el.style.width = "480px";
-                    el.style.maxWidth = "480px";
                     el.style.minWidth = "480px";
+                    el.style.maxWidth = "480px";
                     el.style.transform = "none";
                     el.style.flexShrink = "0";
                 }
