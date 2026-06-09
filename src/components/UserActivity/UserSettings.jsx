@@ -35,8 +35,8 @@ function UserSettings() {
     });
 
     const hiddenLink = username
-    ? `${window.location.origin}/u/${username}`
-    : "";
+        ? `${window.location.origin}/u/${username}`
+        : "";
 
     const applyTheme = (value) => {
         if (value) {
@@ -265,7 +265,6 @@ function UserSettings() {
                         Privacy
                     </h2>
 
-                    {/* anon_messages — kung pwedeng mag-send ang hindi naka-login */}
                     <label className="flex items-center justify-between gap-4 py-2">
                         <div>
                             <span>Accept Anonymous Messages</span>
@@ -281,7 +280,7 @@ function UserSettings() {
                         />
                     </label>
 
-                    {/* allow_link_sharing — on/off ang buong link mo */}
+                    {/* RECEIVE MESSAGES */}
                     <label className="flex items-center justify-between gap-4 py-2">
                         <div>
                             <span>Receive Messages</span>

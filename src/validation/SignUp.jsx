@@ -18,17 +18,17 @@ function SignUp() {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { 
-        data: { 
-          full_name: name 
+      options: {
+        data: {
+          full_name: name
         },
         emailRedirectTo: `${window.location.origin}/EmailConfirmed`
-       }
+      }
     });
     setLoading(false);
-    if (error) { 
-      setError(error.message); 
-      return; 
+    if (error) {
+      setError(error.message);
+      return;
     }
     navigate('/VerifyNotice');
   };

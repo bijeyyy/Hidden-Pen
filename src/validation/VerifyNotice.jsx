@@ -14,9 +14,9 @@ function VerifyNotice() {
                 </p>
 
                 <Link to="/Login">
-                <button className="px-4 py-2 bg-black text-white rounded cursor-pointer">
-                    Back to Login
-                </button>
+                    <button className="px-4 py-2 bg-black text-white rounded cursor-pointer">
+                        Back to Login
+                    </button>
                 </Link>
             </div>
         </>

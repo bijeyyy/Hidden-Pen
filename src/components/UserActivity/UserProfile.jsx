@@ -11,7 +11,7 @@ function UserProfile() {
   const [saving, setSaving] = useState(false);
   const [copied, setCopied] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
-  const [settings, setSettings] = useState({allow_link_sharing: true,});
+  const [settings, setSettings] = useState({ allow_link_sharing: true, });
 
   const [profile, setProfile] = useState({
     fullName: "",
@@ -34,7 +34,7 @@ function UserProfile() {
       }
 
       const user = session.user;
-      
+
       const { data: profileData, error } = await supabase
         .from("profiles")
         .select("*")
@@ -67,33 +67,33 @@ function UserProfile() {
   };
 
   const handleSave = async () => {
-  setSaving(true);
+    setSaving(true);
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  if (!session) return;
+    if (!session) return;
 
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      display_name: profile.fullName,
-      username: profile.username,
-      phone: profile.phone,
-      avatar_url: profile.avatarUrl,
-    })
-    .eq("id", session.user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: profile.fullName,
+        username: profile.username,
+        phone: profile.phone,
+        avatar_url: profile.avatarUrl,
+      })
+      .eq("id", session.user.id);
 
-  setSaving(false);
+    setSaving(false);
 
-  if (error) {
-    alert(error.message);
-    return;
-  }
+    if (error) {
+      alert(error.message);
+      return;
+    }
 
-  setSuccessModal(true);
-};
+    setSuccessModal(true);
+  };
 
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(profile.hiddenLink);
@@ -206,51 +206,50 @@ function UserProfile() {
           </div>
 
           <div className="mt-8 border-t border-default pt-6 space-y-3">
-  <h2 className="text-lg font-semibold text-heading">
-    Your Hidden Link
-  </h2>
+            <h2 className="text-lg font-semibold text-heading">
+              Your Hidden Link
+            </h2>
 
-  <p className="text-sm text-body">
-    Share this link so people can send you anonymous messages.
-  </p>
+            <p className="text-sm text-body">
+              Share this link so people can send you anonymous messages.
+            </p>
 
-  <div className="bg-bg border border-default rounded-base p-3 mb-4 space-y-2">
+            <div className="bg-bg border border-default rounded-base p-3 mb-4 space-y-2">
 
-    {/* LINK TEXT */}
-    <p className="text-sm text-text-secondary break-all">
-      {settings.allow_link_sharing ? (
-  hiddenLink ? (
-    <a
-      href={hiddenLink}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="text-sm text-text-light break-all underline"
-    >
-      {hiddenLink}
-    </a>
-  ) : (
-    <p className="text-sm text-text-secondary">
-      Creating your link...
-    </p>
-  )
-) : (
-  <p className="text-sm text-text-secondary">
-    Link is currently disabled
-  </p>
-)}
-    </p>
+              {/* LINK TEXT */}
+              <p className="text-sm text-text-secondary break-all">
+                {settings.allow_link_sharing ? (
+                  hiddenLink ? (
+                    <a
+                      href={hiddenLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-text-light break-all underline"
+                    >
+                      {hiddenLink}
+                    </a>
+                  ) : (
+                    <p className="text-sm text-text-secondary">
+                      Creating your link...
+                    </p>
+                  )
+                ) : (
+                  <p className="text-sm text-text-secondary">
+                    Link is currently disabled
+                  </p>
+                )}
+              </p>
 
-  </div>
+            </div>
 
-  {/* COPY BUTTON (SAFE CHECK ADDED) */}
-  <button
-    onClick={handleCopyLink}
-    disabled={!settings.allow_link_sharing || !hiddenLink}
-    className="bg-button hover:bg-button-hover text-white px-4 py-2 rounded-base disabled:opacity-50 disabled:cursor-not-allowed"
-  >
-    {copied ? "Link Copied" : "Copy Link"}
-  </button>
-</div>
+            <button
+              onClick={handleCopyLink}
+              disabled={!settings.allow_link_sharing || !hiddenLink}
+              className="bg-button hover:bg-button-hover text-white px-4 py-2 rounded-base disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {copied ? "Link Copied" : "Copy Link"}
+            </button>
+          </div>
 
           <div className="mt-8 flex flex-wrap gap-3">
             <button

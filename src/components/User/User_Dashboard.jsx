@@ -21,12 +21,9 @@ function User_Dashboard() {
     const [favoriteCount, setFavoriteCount] = useState(0);
     const [sessionUser, setSessionUser] = useState(null);
     const [currentUser, setCurrentUser] = useState(null);
-    const [settings, setSettings] = useState({allow_link_sharing: true,});
-    {/* NOTIFICATIONS */ }
+    const [settings, setSettings] = useState({ allow_link_sharing: true, });
     const [isnotification, setNotification] = useState(false);
     const [notifications, setNotifications] = useState([]);
-
-    {/* SOCIALS */ }
     const [copied, setCopied] = useState(false);
     const handleCopyLink = async () => {
         if (!hiddenLink) return;
@@ -91,7 +88,7 @@ function User_Dashboard() {
                 )
             `)
             .eq("receiver_id", userId)
-            .order("created_at", { ascending: false }); 
+            .order("created_at", { ascending: false });
 
         if (error) {
             console.error("Dashboard messages error:", error);
@@ -108,7 +105,7 @@ function User_Dashboard() {
         });
 
         const unreadMessages = messages.filter(
-            (msg) => 
+            (msg) =>
                 !msg.message_reads?.some(
                     (read) => read.user_id === userId
                 )
@@ -224,12 +221,10 @@ function User_Dashboard() {
             <nav className="bg-bg fixed w-full z-20 top-0 border-b border-default">
                 <div className="flex flex-wrap items-center justify-between mx-auto p-4">
 
-                    {/* Logo */}
                     <span className="self-center text-md text-body font-semibold whitespace-nowrap">
                         Welcome, {displayName}
                     </span>
 
-                    {/* USER MENU */}
                     <div className="relative flex items-center md:order-2 gap-8">
                         <button
                             type="button"
@@ -264,7 +259,6 @@ function User_Dashboard() {
                                     </span>
                                 </div>
 
-                                {/* NOTIFICATION LISTS */}
                                 <div className="max-h-64 overflow-y-auto">
 
                                     {notifications.length === 0 ? (
@@ -291,7 +285,6 @@ function User_Dashboard() {
 
                                 </div>
 
-                                {/* VIEW ALL */}
                                 <div className="px-4 py-2 border-t border-default text-center">
                                     <button
                                         onClick={() => navigate("/user_inbox")}
@@ -367,15 +360,12 @@ function User_Dashboard() {
                 </div>
             </nav>
 
-            {/* DASHBOARD CONTENT */}
             <div className="w-full px-6 mt-24">
 
                 <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-                    {/* LEFT SIDE */}
                     <div className="space-y-6">
 
-                        {/* INBOX PREVIEW */}
                         <div className="bg-card p-6 border border-default rounded-base shadow-xs">
                             <h5 className="mb-3 text-2xl font-semibold text-heading">
                                 New Messages
@@ -405,56 +395,56 @@ function User_Dashboard() {
                         </div>
 
                         {/* HIDDEN LINK CARD */}
-<div className="bg-card p-6 border border-default rounded-base shadow-xs">
+                        <div className="bg-card p-6 border border-default rounded-base shadow-xs">
 
-    <h5 className="mb-3 text-2xl font-semibold text-heading">
-        Your Hidden Link
-    </h5>
+                            <h5 className="mb-3 text-2xl font-semibold text-heading">
+                                Your Hidden Link
+                            </h5>
 
-    <p className="text-body mb-4">
-        {settings.allow_link_sharing
-            ? "let people send you secrets, confessions, or compliments"
-            : "Your link is paused - no one can message you right now"}
-    </p>
+                            <p className="text-body mb-4">
+                                {settings.allow_link_sharing
+                                    ? "let people send you secrets, confessions, or compliments"
+                                    : "Your link is paused - no one can message you right now"}
+                            </p>
 
-    {/* LINK DISPLAY */}
-    <div className="bg-bg border border-default rounded-base p-3 mb-4">
-        {settings.allow_link_sharing ? (
-            hiddenLink ? (
-                <a
-                    href={hiddenLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-text-light break-all underline hover:opacity-80"
-                >
-                    {hiddenLink}
-                </a>
-            ) : (
-                <p className="text-sm text-text-secondary">
-                    Creating your link...
-                </p>
-            )
-        ) : (
-            <p className="text-sm text-text-secondary">
-                Link is currently disabled
-            </p>
-        )}
-    </div>
+                            {/* LINK DISPLAY */}
+                            <div className="bg-bg border border-default rounded-base p-3 mb-4">
+                                {settings.allow_link_sharing ? (
+                                    hiddenLink ? (
+                                        <a
+                                            href={hiddenLink}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-text-light break-all underline hover:opacity-80"
+                                        >
+                                            {hiddenLink}
+                                        </a>
+                                    ) : (
+                                        <p className="text-sm text-text-secondary">
+                                            Creating your link...
+                                        </p>
+                                    )
+                                ) : (
+                                    <p className="text-sm text-text-secondary">
+                                        Link is currently disabled
+                                    </p>
+                                )}
+                            </div>
 
-    {/* ACTION BUTTON */}
-    <div className="flex flex-wrap gap-2">
+                            {/* ACTION BUTTON */}
+                            <div className="flex flex-wrap gap-2">
 
-        <button
-            onClick={handleCopyLink}
-            disabled={!settings.allow_link_sharing || !hiddenLink}
-            className="text-white md:w-1/4 w-1/2 bg-button hover:bg-button-hover text-sm px-4 py-2 rounded-base transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-        >
-            {copied ? "✓ Link Copied" : "Copy Link"}
-        </button>
+                                <button
+                                    onClick={handleCopyLink}
+                                    disabled={!settings.allow_link_sharing || !hiddenLink}
+                                    className="text-white md:w-1/4 w-1/2 bg-button hover:bg-button-hover text-sm px-4 py-2 rounded-base transition cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {copied ? "✓ Link Copied" : "Copy Link"}
+                                </button>
 
-    </div>
+                            </div>
 
-</div>
+                        </div>
                         {/* LOVED MESSAGES */}
                         <div className="bg-card p-6 border border-default rounded-base shadow-xs">
                             <div className="flex items-center justify-between mb-4">

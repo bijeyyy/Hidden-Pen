@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
 
 function PublicMessagePage() {
     const { username } = useParams();
+    const navigate = useNavigate();
 
     const [receiver, setReceiver] = useState(null);
     const [message, setMessage] = useState("");
@@ -25,29 +26,24 @@ function PublicMessagePage() {
 
             if (isMounted) setCurrentUser(user || null);
 
-            const { data: profile, error: profileError } = await supabase
+            const { data: profile, error } = await supabase
                 .from("profiles")
                 .select("id, username, display_name, avatar_url")
                 .eq("username", username)
                 .single();
 
-            if (profileError || !profile) {
-                console.error(profileError);
+            if (error || !profile) {
                 if (isMounted) setLoading(false);
                 return;
             }
 
             if (isMounted) setReceiver(profile);
 
-            const { data: settings, error: settingsError } = await supabase
+            const { data: settings } = await supabase
                 .from("user_settings")
                 .select("allow_link_sharing, anon_messages")
                 .eq("user_id", profile.id)
                 .maybeSingle();
-
-            if (settingsError) {
-                console.error(settingsError);
-            }
 
             if (isMounted) {
                 setReceiverSettings(
@@ -89,35 +85,15 @@ function PublicMessagePage() {
             return;
         }
 
-        const { error: insertError } = await supabase
-            .from("messages")
-            .insert({
-                receiver_id: receiver.id,
-                message: message.trim(),
-                sender_id: currentUser?.id ?? null,
+        const { error } = await supabase.from("messages").insert({
+            receiver_id: receiver.id,
+            message: message.trim(),
+            sender_id: currentUser?.id ?? null,
         });
 
-        if (insertError) {
-            console.error(insertError);
-            setError(insertError.message);
+        if (error) {
+            setError(error.message);
             return;
-        }
-
-        const { data: settings } = await supabase
-            .from("user_settings")
-            .select("msg_notifications")
-            .eq("user_id", receiver.id)
-            .single();
-
-        if (settings?.msg_notifications) {
-            await supabase.functions.invoke("send-push", {
-                body: {
-                    receiver_id: receiver.id,
-                    title: "New Message",
-                    body: "You received a new anonymous message",
-                    url: "/user_inbox"
-                },
-            });
         }
 
         setMessage("");
@@ -127,62 +103,82 @@ function PublicMessagePage() {
     if (loading) return <p>Loading...</p>;
     if (!receiver) return <p>User not found.</p>;
 
-    if (receiverSettings && !receiverSettings.allow_link_sharing) {
-        return (
-            <div className="min-h-screen flex items-center justify-center px-6">
-                <div className="w-full max-w-md bg-card border border-default rounded-base p-6 text-center">
-                    <h1 className="text-xl font-semibold mb-2">
-                        Not Accepting Messages
-                    </h1>
-                    <p className="text-gray-400 text-sm">
-                        This user has disabled message receiving.
-                    </p>
-                </div>
-            </div>
-        );
-    }
-
     return (
         <div className="min-h-screen flex items-center justify-center px-6">
-            <div className="w-full max-w-md bg-card border border-default rounded-base p-6">
 
-                <h1 className="text-2xl font-semibold mb-2">
-                    Send a message to {receiver.display_name}
-                </h1>
-
-                {!receiverSettings?.anon_messages && !currentUser && (
-                    <p className="text-amber-500 text-sm mt-2 mb-4">
-                        Login required to send a message.
+            <div className="relative w-full max-w-md">
+                <div className="absolute -top-16 right-0 w-44 bg-card border border-default rounded-base p-3 shadow-md">
+                    <p className="text-xs text-gray-400 mb-2">
+                        Want to receive messages too?
                     </p>
-                )}
 
-                <textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    className="w-full border rounded-base p-3 mt-4"
-                    rows="5"
-                    placeholder="Write your message..."
-                    disabled={
-                        !receiverSettings?.anon_messages && !currentUser
-                    }
-                />
+                    <button
+                        onClick={() => navigate("/login")}
+                        className="w-full bg-button hover:bg-button-hover text-white py-1.5 rounded-base text-xs"
+                    >
+                        Log in
+                    </button>
+                </div>
 
-                {error && (
-                    <p className="mt-2 text-red-500 text-sm">{error}</p>
-                )}
+                {/* MAIN CARD */}
+                <div className="bg-card border border-default rounded-base p-6">
 
-                <button
-                    onClick={sendMessage}
-                    className="w-full mt-4 bg-button hover:bg-button-hover text-white py-2 rounded-base"
-                >
-                    Send Message
-                </button>
+                    <h1 className="text-2xl font-semibold mb-2">
+                        Send a message to {receiver.display_name}
+                    </h1>
 
+                    {!receiverSettings?.anon_messages && !currentUser && (
+                        <p className="text-amber-500 text-sm mt-2 mb-4">
+                            Login required to send a message.
+                        </p>
+                    )}
+
+                    <textarea
+                        value={message}
+                        onChange={(e) => setMessage(e.target.value)}
+                        className="w-full border rounded-base p-3 mt-4"
+                        rows="5"
+                        placeholder="Write your message..."
+                        disabled={
+                            !receiverSettings?.anon_messages && !currentUser
+                        }
+                    />
+
+                    {error && (
+                        <p className="mt-2 text-red-500 text-sm">{error}</p>
+                    )}
+
+                    <button
+                        onClick={sendMessage}
+                        className="w-full mt-4 bg-button hover:bg-button-hover text-white py-2 rounded-base"
+                    >
+                        Send Message
+                    </button>
+                </div>
+
+                {/* MODAL */}
                 {sent && (
-                    <p className="mt-3 text-green-600 text-sm">
-                        Message sent successfully.
-                    </p>
+                    <div className="fixed inset-0 flex items-center justify-center bg-black/50 backdrop-blur-sm z-50">
+                        <div className="w-full max-w-sm bg-card border border-default rounded-base p-6 text-center">
+
+                            <h2 className="text-xl font-semibold mb-2">
+                                Message Sent !!!
+                            </h2>
+
+                            <p className="text-sm text-gray-400 mb-4">
+                                Your message has been delivered successfully.
+                            </p>
+
+                            <button
+                                onClick={() => setSent(false)}
+                                className="w-full bg-button hover:bg-button-hover text-white py-2 rounded-base"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
                 )}
+
             </div>
         </div>
     );

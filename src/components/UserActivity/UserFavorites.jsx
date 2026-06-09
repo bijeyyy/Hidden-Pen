@@ -47,9 +47,6 @@ function UserFavorites() {
         setToasts((prev) => prev.filter((t) => t.id !== id));
     };
 
-    // =========================
-    // LOAD FAVORITES (message_reactions)
-    // =========================
     useEffect(() => {
         const loadFavorites = async () => {
 
@@ -97,9 +94,6 @@ function UserFavorites() {
         loadFavorites();
     }, []);
 
-    // =========================
-    // REMOVE FAVORITE (FIXED RELATIONAL DELETE)
-    // =========================
     const removeFromFavorites = async (messageId) => {
 
         const {

@@ -19,7 +19,7 @@ function EmailConfirmed() {
                 <p className="mb-6 max-w-md text-text-secondary">
                     Your Hidden Pen account is now active.
                 </p>
-                
+
                 <button onClick={handleProceed} className="px-4 py-2 bg-black text-white rounded cursor-pointer">
                     Proceed to Login
                 </button>
@@ -28,4 +28,4 @@ function EmailConfirmed() {
     );
 }
 
-export default EmailConfirmed
+export default EmailConfirmed;
