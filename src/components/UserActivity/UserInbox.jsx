@@ -419,16 +419,16 @@ function UserInbox() {
     };
 
     const generateShareImage = async () => {
-    if (!shareRef.current) {
-        showToast("Share card not ready yet.");
-        return;
-    }
+        if (!shareRef.current) {
+            showToast("Share card not ready yet.");
+            return;
+        }
 
-    const original = shareRef.current;
-    const clone = original.cloneNode(true);
+        const original = shareRef.current;
+        const clone = original.cloneNode(true);
 
-    const wrapper = document.createElement("div");
-    wrapper.style.cssText = `
+        const wrapper = document.createElement("div");
+        wrapper.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
@@ -441,7 +441,7 @@ function UserInbox() {
         overflow: visible;
     `;
 
-    clone.style.cssText = `
+        clone.style.cssText = `
         position: relative;
         width: 480px;
         min-width: 480px;
@@ -450,68 +450,86 @@ function UserInbox() {
         font-family: 'Inter', sans-serif;
     `;
 
-    wrapper.appendChild(clone);
-    document.body.appendChild(wrapper);
+        wrapper.appendChild(clone);
+        document.body.appendChild(wrapper);
 
-    await document.fonts.ready;
-    await new Promise((r) => setTimeout(r, 200));
+        await document.fonts.ready;
+        await new Promise((r) => setTimeout(r, 200));
 
-    const canvas = await html2canvas(clone, {
-        scale: 3,
-        backgroundColor: "#ffffff",
-        useCORS: true,
-        allowTaint: false,
-        width: 480,
-        height: clone.scrollHeight,
-        windowWidth: 1440,
-        x: 0,
-        y: 0,
-    });
+        const canvas = await html2canvas(clone, {
+            scale: 3,
+            backgroundColor: "#ffffff",
+            useCORS: true,
+            allowTaint: false,
+            width: 480,
+            height: clone.scrollHeight,
+        });
 
-    document.body.removeChild(wrapper);
+        document.body.removeChild(wrapper);
 
-    return canvas.toDataURL("image/png");
-};
+        return canvas.toDataURL("image/png");
+    };
 
     const downloadShareImage = async () => {
-        console.log("clicked");
-
         if (!shareRef.current) {
-            console.log("shareRef is null");
+            showToast("Share card not ready yet.");
             return;
         }
 
         try {
             setIsExporting(true);
 
+            const original = shareRef.current;
+            const clone = original.cloneNode(true);
+
+            const wrapper = document.createElement("div");
+            wrapper.style.cssText = `
+            width: 480px;
+            min-width: 480px;
+            max-width: 480px;
+            position: relative;
+            overflow: visible;
+        `;
+
+            clone.style.cssText = `
+            position: relative;
+            width: 480px;
+            min-width: 480px;
+            max-width: 480px;
+            transform: none;
+            font-family: 'Inter', sans-serif;
+        `;
+
+            wrapper.appendChild(clone);
+
+            const offscreen = document.getElementById("offscreen-container");
+            offscreen.appendChild(wrapper);
+
             await document.fonts.ready;
+            await new Promise((r) => setTimeout(r, 200));
 
-            console.log("creating canvas");
-
-            const canvas = await html2canvas(shareRef.current, {
-                scale: 2,
-                backgroundColor: "#fff",
+            const canvas = await html2canvas(clone, {
+                scale: 3,
+                backgroundColor: "#ffffff",
                 useCORS: true,
                 allowTaint: false,
+                width: 480,
+                height: clone.scrollHeight,
             });
 
-            console.log("canvas created");
+            offscreen.removeChild(wrapper);
 
-            const Image = canvas.toDataURL("image/png");
-
-            console.log(Image.slice(0, 100));
-
+            const image = canvas.toDataURL("image/png");
             const link = document.createElement("a");
-            link.href = Image;
+            link.href = image;
             link.download = `hiddenpen-${Date.now()}.png`;
-
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
 
-            console.log("download trigger");
         } catch (err) {
             console.error("html2canvas error:", err);
+            showToast("Something went wrong. Please try again.");
         } finally {
             setIsExporting(false);
         }
@@ -519,6 +537,19 @@ function UserInbox() {
 
     return (
         <>
+
+            <div
+                id="offscreen-container"
+                style={{
+                    position: "fixed",
+                    top: 0,
+                    left: "-9999px",
+                    width: "480px",
+                    overflow: "hidden",
+                    zIndex: -1,
+                }}
+            />
+
             <div className="min-h-screen px-4 sm:px-8 lg:px-24 max-w-7xl mx-auto mt-12">
                 <h1 className="text-2xl sm:text-3xl font-bold text-text-primary mb-2">
                     Inbox
@@ -739,9 +770,10 @@ function UserInbox() {
                                 className="bg-white rounded-2xl overflow-hidden"
                                 style={{
                                     width: "480px",
-                                    position: "fixed",
+                                    position: "absolute",
                                     top: "0",
-                                    left: "-99999px",
+                                    left: "-9999px",
+                                    visibility: "hidden",
                                     pointerEvents: "none",
                                     zIndex: -1,
                                     fontFamily: "'Inter', sans-serif",
