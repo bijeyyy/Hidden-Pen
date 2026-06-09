@@ -103,7 +103,7 @@ function UserInbox() {
                     data.map(msg => ({
                         message_id: msg.id,
                         user_id: userId,
-                        reat_at: now
+                        read_at: now
                     })),
                     {
                         onConflict: "message_id,user_id"
@@ -424,13 +424,21 @@ function UserInbox() {
             return;
         }
 
+        const node = shareRef.current;
+
         node.style.position = "fixed";
-        node.style.left = "-99999px";
+        node.style.top = "0";
+        node.style.left = "0";
         node.style.width = "480px";
         node.style.minWidth = "480px";
         node.style.maxWidth = "480px";
+        node.style.zIndex = "9999";
+        node.style.transform = "scale(1)";
+        node.style.visibility = "hidden";
 
         await document.fonts.ready;
+
+        await new Promise((resolve) => setTimeout(resolve, 100));
 
         const canvas = await html2canvas(shareRef.current, {
             scale: 3,
@@ -438,21 +446,30 @@ function UserInbox() {
             useCORS: true,
             allowTaint: false,
             width: 480,
+            height: node.scrollHeight,
             windowWidth: 1200,
 
             onclone: (doc) => {
                 const el = doc.querySelector('[data-share="card"]');
                 if (el) {
-                    l.style.position = "fixed";
-                    el.style.left = "-99999px";
+                    el.style.position = "fixed";
+                    el.style.top = "0";
+                    el.style.left = "0";
                     el.style.width = "480px";
                     el.style.minWidth = "480px";
                     el.style.maxWidth = "480px";
                     el.style.transform = "none";
-                    el.style.flexShrink = "0";
+                    el.style.visibility = "visible";
+                    el.style.zIndex = "9999";
                 }
             }
         });
+
+        node.style.position = "fixed";
+        node.style.top = "0";
+        node.style.left = "-99999px";
+        node.style.visibility = "";
+        node.style.zIndex = "-1";
 
         return canvas.toDataURL("image/png");
     };
