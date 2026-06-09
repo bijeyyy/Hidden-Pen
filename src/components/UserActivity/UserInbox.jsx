@@ -471,187 +471,171 @@ function UserInbox() {
     };
 
     const downloadShareImage = async () => {
-    if (!selectedMessage) return;
+        if (!selectedMessage) return;
 
-    try {
-        setIsExporting(true);
+        try {
+            setIsExporting(true);
 
-        const W = 480;
-        const padding = 32;
-        const canvas = document.createElement("canvas");
-        const ctx = canvas.getContext("2d");
+            const W = 480;
+            const padding = 32;
+            const canvas = document.createElement("canvas");
+            const ctx = canvas.getContext("2d");
 
-        // Load fonts
-        await document.fonts.ready;
+            await document.fonts.ready;
 
-        // Measure text heights first
-        const msgText = selectedMessage.message || "";
-        const replies = selectedMessageReplies || [];
+            const msgText = selectedMessage.message || "";
+            const replies = selectedMessageReplies || [];
 
-        ctx.font = "13.5px Inter, sans-serif";
-        const msgLines = getWrappedLines(ctx, msgText, W - padding * 2 - 40);
-        const msgBoxHeight = msgLines.length * 24 + 32;
+            ctx.font = "13.5px Inter, sans-serif";
+            const msgLines = getWrappedLines(ctx, msgText, W - padding * 2 - 40);
+            const msgBoxHeight = msgLines.length * 24 + 32;
 
-        let repliesBoxHeight = 0;
-        let allReplyLines = [];
-        if (replies.length > 0) {
-            replies.forEach(r => {
-                const lines = getWrappedLines(ctx, r.reply, W - padding * 2 - 40);
-                allReplyLines.push(...lines);
-            });
-            repliesBoxHeight = allReplyLines.length * 24 + 32 + 28; // label + box
-        }
+            let repliesBoxHeight = 0;
+            let allReplyLines = [];
+            if (replies.length > 0) {
+                replies.forEach(r => {
+                    const lines = getWrappedLines(ctx, r.reply, W - padding * 2 - 40);
+                    allReplyLines.push(...lines);
+                });
+                repliesBoxHeight = allReplyLines.length * 24 + 32 + 28; // label + box
+            }
 
-        const totalHeight = 160 + msgBoxHeight + repliesBoxHeight + 80;
-        canvas.width = W * 2;
-        canvas.height = totalHeight * 2;
-        ctx.scale(2, 2);
+            const totalHeight = 160 + msgBoxHeight + repliesBoxHeight + 80;
+            canvas.width = W * 2;
+            canvas.height = totalHeight * 2;
+            ctx.scale(2, 2);
 
-        // Background
-        ctx.fillStyle = "#ffffff";
-        ctx.roundRect(0, 0, W, totalHeight, 16);
-        ctx.fill();
+            ctx.fillStyle = "#ffffff";
+            ctx.roundRect(0, 0, W, totalHeight, 16);
+            ctx.fill();
 
-        // ---- HEADER ----
-        // Lock icon circle
-        ctx.fillStyle = "#FCE4EF";
-        ctx.beginPath();
-        ctx.arc(W / 2, 44, 20, 0, Math.PI * 2);
-        ctx.fill();
+            ctx.fillStyle = "#FCE4EF";
+            ctx.beginPath();
+            ctx.arc(W / 2, 44, 20, 0, Math.PI * 2);
+            ctx.fill();
 
-        // Lock icon (simple)
-        ctx.strokeStyle = "#EC5FA6";
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.roundRect(W / 2 - 7, 41, 14, 10, 2);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(W / 2 - 4, 41);
-        ctx.arc(W / 2, 37, 4, Math.PI, 0);
-        ctx.moveTo(W / 2 + 4, 37);
-        ctx.lineTo(W / 2 + 4, 41);
-        ctx.stroke();
+            ctx.strokeStyle = "#EC5FA6";
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(W / 2 - 7, 41, 14, 10, 2);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(W / 2 - 4, 41);
+            ctx.arc(W / 2, 37, 4, Math.PI, 0);
+            ctx.moveTo(W / 2 + 4, 37);
+            ctx.lineTo(W / 2 + 4, 41);
+            ctx.stroke();
 
-        // "Hidden Pen" title
-        ctx.fillStyle = "#1F2937";
-        ctx.font = "600 15px Poppins, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("Hidden Pen", W / 2, 82);
+            ctx.fillStyle = "#1F2937";
+            ctx.font = "600 15px Poppins, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("Hidden Pen", W / 2, 82);
 
-        // "anonymous message" pill
-        ctx.fillStyle = "#FCE4EF";
-        ctx.beginPath();
-        ctx.roundRect(W / 2 - 65, 90, 130, 22, 11);
-        ctx.fill();
-        ctx.fillStyle = "#D94D95";
-        ctx.font = "500 11px Poppins, sans-serif";
-        ctx.fillText("anonymous message", W / 2, 105);
+            ctx.fillStyle = "#FCE4EF";
+            ctx.beginPath();
+            ctx.roundRect(W / 2 - 65, 90, 130, 22, 11);
+            ctx.fill();
+            ctx.fillStyle = "#D94D95";
+            ctx.font = "500 11px Poppins, sans-serif";
+            ctx.fillText("anonymous message", W / 2, 105);
 
-        // Divider
-        ctx.strokeStyle = "#E5E7EB";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, 124);
-        ctx.lineTo(W, 124);
-        ctx.stroke();
-
-        // ---- MESSAGE SECTION ----
-        let y = 140;
-
-        ctx.fillStyle = "#9CA3AF";
-        ctx.font = "500 10px Inter, sans-serif";
-        ctx.textAlign = "left";
-        ctx.fillText("MESSAGE", padding, y);
-        y += 14;
-
-        // Message box
-        ctx.fillStyle = "#F7F7F9";
-        ctx.strokeStyle = "#E5E7EB";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.roundRect(padding, y, W - padding * 2, msgBoxHeight, 12);
-        ctx.fill();
-        ctx.stroke();
-
-        ctx.fillStyle = "#1F2937";
-        ctx.font = "13.5px Inter, sans-serif";
-        msgLines.forEach((line, i) => {
-            ctx.fillText(line, padding + 20, y + 22 + i * 24);
-        });
-        y += msgBoxHeight + 16;
-
-        // ---- REPLIES SECTION ----
-        if (replies.length > 0) {
-            ctx.fillStyle = "#9CA3AF";
-            ctx.font = "500 10px Inter, sans-serif";
-            ctx.fillText("YOUR REPLY", padding, y);
-            y += 14;
-
-            ctx.fillStyle = "#FFFFFF";
             ctx.strokeStyle = "#E5E7EB";
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.roundRect(padding, y, W - padding * 2, repliesBoxHeight - 28, 12);
+            ctx.moveTo(0, 124);
+            ctx.lineTo(W, 124);
+            ctx.stroke();
+
+            let y = 140;
+
+            ctx.fillStyle = "#9CA3AF";
+            ctx.font = "500 10px Inter, sans-serif";
+            ctx.textAlign = "left";
+            ctx.fillText("MESSAGE", padding, y);
+            y += 14;
+
+            ctx.fillStyle = "#F7F7F9";
+            ctx.strokeStyle = "#E5E7EB";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(padding, y, W - padding * 2, msgBoxHeight, 12);
             ctx.fill();
             ctx.stroke();
 
-            // Pink left border
-            ctx.fillStyle = "#EC5FA6";
-            ctx.beginPath();
-            ctx.roundRect(padding, y, 3, repliesBoxHeight - 28, [0, 0, 0, 0]);
-            ctx.fill();
-
-            ctx.fillStyle = "#374151";
+            ctx.fillStyle = "#1F2937";
             ctx.font = "13.5px Inter, sans-serif";
-            allReplyLines.forEach((line, i) => {
+            msgLines.forEach((line, i) => {
                 ctx.fillText(line, padding + 20, y + 22 + i * 24);
             });
-            y += repliesBoxHeight - 28 + 16;
-        }
+            y += msgBoxHeight + 16;
 
-        // ---- FOOTER ----
-        ctx.fillStyle = "#9CA3AF";
-        ctx.font = "11px Poppins, sans-serif";
-        ctx.textAlign = "center";
-        ctx.fillText("hidden-pen-web.vercel.app", W / 2, totalHeight - 20);
+            if (replies.length > 0) {
+                ctx.fillStyle = "#9CA3AF";
+                ctx.font = "500 10px Inter, sans-serif";
+                ctx.fillText("YOUR REPLY", padding, y);
+                y += 14;
 
-        // Download
-        const image = canvas.toDataURL("image/png");
-        const link = document.createElement("a");
-        link.href = image;
-        link.download = `hiddenpen-${Date.now()}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+                ctx.fillStyle = "#FFFFFF";
+                ctx.strokeStyle = "#E5E7EB";
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(padding, y, W - padding * 2, repliesBoxHeight - 28, 12);
+                ctx.fill();
+                ctx.stroke();
 
-    } catch (err) {
-        console.error("Canvas error:", err);
-        showToast("Something went wrong. Please try again.");
-    } finally {
-        setIsExporting(false);
-    }
-};
+                ctx.fillStyle = "#EC5FA6";
+                ctx.beginPath();
+                ctx.roundRect(padding, y, 3, repliesBoxHeight - 28, [0, 0, 0, 0]);
+                ctx.fill();
 
-// Helper function — ilagay ito sa labas ng component (bago ang `function UserInbox()`)
-function getWrappedLines(ctx, text, maxWidth) {
-    const lines = [];
-    const paragraphs = text.split("\n");
-    paragraphs.forEach(para => {
-        const words = para.split(" ");
-        let current = "";
-        words.forEach(word => {
-            const test = current ? current + " " + word : word;
-            if (ctx.measureText(test).width > maxWidth) {
-                if (current) lines.push(current);
-                current = word;
-            } else {
-                current = test;
+                ctx.fillStyle = "#374151";
+                ctx.font = "13.5px Inter, sans-serif";
+                allReplyLines.forEach((line, i) => {
+                    ctx.fillText(line, padding + 20, y + 22 + i * 24);
+                });
+                y += repliesBoxHeight - 28 + 16;
             }
+
+            ctx.fillStyle = "#9CA3AF";
+            ctx.font = "11px Poppins, sans-serif";
+            ctx.textAlign = "center";
+            ctx.fillText("hidden-pen-web.vercel.app", W / 2, totalHeight - 20);
+
+            const image = canvas.toDataURL("image/png");
+            const link = document.createElement("a");
+            link.href = image;
+            link.download = `hiddenpen-${Date.now()}.png`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+        } catch (err) {
+            console.error("Canvas error:", err);
+            showToast("Something went wrong. Please try again.");
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    function getWrappedLines(ctx, text, maxWidth) {
+        const lines = [];
+        const paragraphs = text.split("\n");
+        paragraphs.forEach(para => {
+            const words = para.split(" ");
+            let current = "";
+            words.forEach(word => {
+                const test = current ? current + " " + word : word;
+                if (ctx.measureText(test).width > maxWidth) {
+                    if (current) lines.push(current);
+                    current = word;
+                } else {
+                    current = test;
+                }
+            });
+            if (current) lines.push(current);
         });
-        if (current) lines.push(current);
-    });
-    return lines.length ? lines : [""];
-}
+        return lines.length ? lines : [""];
+    }
 
     return (
         <>
@@ -931,6 +915,18 @@ function getWrappedLines(ctx, text, maxWidth) {
                                 </button>
                             </div>
 
+                            <div className="mb-5">
+                                <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">
+                                    Anonymous
+                                </p>
+
+                                <div className="bg-neutral-primary-soft/40 border border-default rounded-xl p-4">
+                                    <p className="text-text-primary text-sm sm:text-base whitespace-pre-wrap leading-relaxed">
+                                        {selectedMessage.message}
+                                    </p>
+                                </div>
+                            </div>
+
                             {repliesLoading ? (
                                 <div className="mb-5 text-xs text-gray-400">Loading replies...</div>
                             ) : selectedMessageReplies.length > 0 ? (
@@ -1073,80 +1069,80 @@ function getWrappedLines(ctx, text, maxWidth) {
             )}
 
             {selectedMessage && (
-            <div
-                ref={shareRef}
-                data-share="card"
-                className="bg-white rounded-2xl overflow-hidden"
-                style={{
-                    width: "480px",
-                    position: "fixed",
-                    top: "0",
-                    left: "-9999px",
-                    visibility: "hidden",
-                    pointerEvents: "none",
-                    zIndex: -1,
-                    fontFamily: "'Inter', sans-serif",
-                }}
-            >
-                {/* Header */}
-                <div className="flex flex-col items-center gap-2 px-8 pt-8 pb-5 border-b border-[#E5E7EB]">
-                    <div className="w-10 h-10 rounded-full bg-[#FCE4EF] flex items-center justify-center">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EC5FA6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                        </svg>
+                <div
+                    ref={shareRef}
+                    data-share="card"
+                    className="bg-white rounded-2xl overflow-hidden"
+                    style={{
+                        width: "480px",
+                        position: "fixed",
+                        top: "0",
+                        left: "-9999px",
+                        visibility: "hidden",
+                        pointerEvents: "none",
+                        zIndex: -1,
+                        fontFamily: "'Inter', sans-serif",
+                    }}
+                >
+                    {/* Header */}
+                    <div className="flex flex-col items-center gap-2 px-8 pt-8 pb-5 border-b border-[#E5E7EB]">
+                        <div className="w-10 h-10 rounded-full bg-[#FCE4EF] flex items-center justify-center">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EC5FA6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                            </svg>
+                        </div>
+                        <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "15px", fontWeight: 600, color: "#1F2937", margin: 0 }}>
+                            Hidden Pen
+                        </p>
+                        <span style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontSize: "11px",
+                            background: "#FCE4EF",
+                            color: "#D94D95",
+                            padding: "3px 12px",
+                            borderRadius: "999px",
+                            fontFamily: "'Poppins', sans-serif",
+                            fontWeight: 500,
+                        }}>
+                            anonymous message
+                        </span>
                     </div>
-                    <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "15px", fontWeight: 600, color: "#1F2937", margin: 0 }}>
-                        Hidden Pen
-                    </p>
-                    <span style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "4px",
-                        fontSize: "11px",
-                        background: "#FCE4EF",
-                        color: "#D94D95",
-                        padding: "3px 12px",
-                        borderRadius: "999px",
-                        fontFamily: "'Poppins', sans-serif",
-                        fontWeight: 500,
-                    }}>
-                        anonymous message
-                    </span>
-                </div>
 
-                <div className="px-8 py-6">
-                    <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
-                        Message
-                    </p>
-                    <div style={{ background: "#F7F7F9", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", marginBottom: "16px" }}>
-                        <p style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#1F2937", margin: 0, whiteSpace: "pre-wrap" }}>
-                            {selectedMessage?.message}
+                    <div className="px-8 py-6">
+                        <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
+                            Message
+                        </p>
+                        <div style={{ background: "#F7F7F9", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", marginBottom: "16px" }}>
+                            <p style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#1F2937", margin: 0, whiteSpace: "pre-wrap" }}>
+                                {selectedMessage?.message}
+                            </p>
+                        </div>
+
+                        {selectedMessageReplies?.length > 0 && (
+                            <>
+                                <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
+                                    Your reply
+                                </p>
+                                <div style={{ background: "#FFFFFF", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", borderLeft: "3px solid #EC5FA6" }}>
+                                    {selectedMessageReplies.map((r) => (
+                                        <p key={r.id} style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#374151", margin: 0, marginBottom: "8px", whiteSpace: "pre-wrap" }}>
+                                            {r.reply}
+                                        </p>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+
+                    <div style={{ padding: "12px 32px 24px", display: "flex", justifyContent: "center" }}>
+                        <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "11px", color: "#9CA3AF", margin: 0 }}>
+                            hidden-pen-web.vercel.app
                         </p>
                     </div>
-
-                    {selectedMessageReplies?.length > 0 && (
-                        <>
-                            <p style={{ fontSize: "10px", fontWeight: 500, color: "#9CA3AF", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "6px" }}>
-                                Your reply
-                            </p>
-                            <div style={{ background: "#FFFFFF", borderRadius: "12px", padding: "16px 20px", border: "1px solid #E5E7EB", borderLeft: "3px solid #EC5FA6" }}>
-                                {selectedMessageReplies.map((r) => (
-                                    <p key={r.id} style={{ fontSize: "13.5px", lineHeight: "1.75", color: "#374151", margin: 0, marginBottom: "8px", whiteSpace: "pre-wrap" }}>
-                                        {r.reply}
-                                    </p>
-                                ))}
-                            </div>
-                        </>
-                    )}
                 </div>
-
-                <div style={{ padding: "12px 32px 24px", display: "flex", justifyContent: "center" }}>
-                    <p style={{ fontFamily: "'Poppins', sans-serif", fontSize: "11px", color: "#9CA3AF", margin: 0 }}>
-                        hidden-pen-web.vercel.app
-                    </p>
-                </div>
-            </div>
             )}
 
             <Toast toasts={toasts} removeToast={removeToast} />
