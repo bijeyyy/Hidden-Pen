@@ -434,7 +434,7 @@ function UserInbox() {
         const rect = node.getBoundingClientReact();
 
         const canvas = await html2canvas(shareRef.current, {
-            scale: 2,
+            scale: 3,
             backgroundColor: "#ffffff",
             useCORS: true,
             allowTaint: false,
