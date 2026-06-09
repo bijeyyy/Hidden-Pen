@@ -471,69 +471,187 @@ function UserInbox() {
     };
 
     const downloadShareImage = async () => {
-        if (!shareRef.current) {
-            showToast("Share card not ready yet.");
-            return;
-        }
+    if (!selectedMessage) return;
 
-        try {
-            setIsExporting(true);
+    try {
+        setIsExporting(true);
 
-            const original = shareRef.current;
-            const clone = original.cloneNode(true);
+        const W = 480;
+        const padding = 32;
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-            const wrapper = document.createElement("div");
-            wrapper.style.cssText = `
-            width: 480px;
-            min-width: 480px;
-            max-width: 480px;
-            position: relative;
-            overflow: visible;
-        `;
+        // Load fonts
+        await document.fonts.ready;
 
-            clone.style.cssText = `
-            position: relative;
-            width: 480px;
-            min-width: 480px;
-            max-width: 480px;
-            transform: none;
-            font-family: 'Inter', sans-serif;
-        `;
+        // Measure text heights first
+        const msgText = selectedMessage.message || "";
+        const replies = selectedMessageReplies || [];
 
-            wrapper.appendChild(clone);
+        ctx.font = "13.5px Inter, sans-serif";
+        const msgLines = getWrappedLines(ctx, msgText, W - padding * 2 - 40);
+        const msgBoxHeight = msgLines.length * 24 + 32;
 
-            const offscreen = document.getElementById("offscreen-container");
-            offscreen.appendChild(wrapper);
-
-            await document.fonts.ready;
-            await new Promise((r) => setTimeout(r, 200));
-
-            const canvas = await html2canvas(clone, {
-                scale: 3,
-                backgroundColor: "#ffffff",
-                useCORS: true,
-                allowTaint: false,
-                width: 480,
-                height: clone.scrollHeight,
+        let repliesBoxHeight = 0;
+        let allReplyLines = [];
+        if (replies.length > 0) {
+            replies.forEach(r => {
+                const lines = getWrappedLines(ctx, r.reply, W - padding * 2 - 40);
+                allReplyLines.push(...lines);
             });
-
-            offscreen.removeChild(wrapper);
-
-            const image = canvas.toDataURL("image/png");
-            const link = document.createElement("a");
-            link.href = image;
-            link.download = `hiddenpen-${Date.now()}.png`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-
-        } catch (err) {
-            console.error("html2canvas error:", err);
-            showToast("Something went wrong. Please try again.");
-        } finally {
-            setIsExporting(false);
+            repliesBoxHeight = allReplyLines.length * 24 + 32 + 28; // label + box
         }
-    };
+
+        const totalHeight = 160 + msgBoxHeight + repliesBoxHeight + 80;
+        canvas.width = W * 2;
+        canvas.height = totalHeight * 2;
+        ctx.scale(2, 2);
+
+        // Background
+        ctx.fillStyle = "#ffffff";
+        ctx.roundRect(0, 0, W, totalHeight, 16);
+        ctx.fill();
+
+        // ---- HEADER ----
+        // Lock icon circle
+        ctx.fillStyle = "#FCE4EF";
+        ctx.beginPath();
+        ctx.arc(W / 2, 44, 20, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Lock icon (simple)
+        ctx.strokeStyle = "#EC5FA6";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.roundRect(W / 2 - 7, 41, 14, 10, 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - 4, 41);
+        ctx.arc(W / 2, 37, 4, Math.PI, 0);
+        ctx.moveTo(W / 2 + 4, 37);
+        ctx.lineTo(W / 2 + 4, 41);
+        ctx.stroke();
+
+        // "Hidden Pen" title
+        ctx.fillStyle = "#1F2937";
+        ctx.font = "600 15px Poppins, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("Hidden Pen", W / 2, 82);
+
+        // "anonymous message" pill
+        ctx.fillStyle = "#FCE4EF";
+        ctx.beginPath();
+        ctx.roundRect(W / 2 - 65, 90, 130, 22, 11);
+        ctx.fill();
+        ctx.fillStyle = "#D94D95";
+        ctx.font = "500 11px Poppins, sans-serif";
+        ctx.fillText("anonymous message", W / 2, 105);
+
+        // Divider
+        ctx.strokeStyle = "#E5E7EB";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, 124);
+        ctx.lineTo(W, 124);
+        ctx.stroke();
+
+        // ---- MESSAGE SECTION ----
+        let y = 140;
+
+        ctx.fillStyle = "#9CA3AF";
+        ctx.font = "500 10px Inter, sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("MESSAGE", padding, y);
+        y += 14;
+
+        // Message box
+        ctx.fillStyle = "#F7F7F9";
+        ctx.strokeStyle = "#E5E7EB";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.roundRect(padding, y, W - padding * 2, msgBoxHeight, 12);
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#1F2937";
+        ctx.font = "13.5px Inter, sans-serif";
+        msgLines.forEach((line, i) => {
+            ctx.fillText(line, padding + 20, y + 22 + i * 24);
+        });
+        y += msgBoxHeight + 16;
+
+        // ---- REPLIES SECTION ----
+        if (replies.length > 0) {
+            ctx.fillStyle = "#9CA3AF";
+            ctx.font = "500 10px Inter, sans-serif";
+            ctx.fillText("YOUR REPLY", padding, y);
+            y += 14;
+
+            ctx.fillStyle = "#FFFFFF";
+            ctx.strokeStyle = "#E5E7EB";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.roundRect(padding, y, W - padding * 2, repliesBoxHeight - 28, 12);
+            ctx.fill();
+            ctx.stroke();
+
+            // Pink left border
+            ctx.fillStyle = "#EC5FA6";
+            ctx.beginPath();
+            ctx.roundRect(padding, y, 3, repliesBoxHeight - 28, [0, 0, 0, 0]);
+            ctx.fill();
+
+            ctx.fillStyle = "#374151";
+            ctx.font = "13.5px Inter, sans-serif";
+            allReplyLines.forEach((line, i) => {
+                ctx.fillText(line, padding + 20, y + 22 + i * 24);
+            });
+            y += repliesBoxHeight - 28 + 16;
+        }
+
+        // ---- FOOTER ----
+        ctx.fillStyle = "#9CA3AF";
+        ctx.font = "11px Poppins, sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText("hidden-pen-web.vercel.app", W / 2, totalHeight - 20);
+
+        // Download
+        const image = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = image;
+        link.download = `hiddenpen-${Date.now()}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+    } catch (err) {
+        console.error("Canvas error:", err);
+        showToast("Something went wrong. Please try again.");
+    } finally {
+        setIsExporting(false);
+    }
+};
+
+// Helper function — ilagay ito sa labas ng component (bago ang `function UserInbox()`)
+function getWrappedLines(ctx, text, maxWidth) {
+    const lines = [];
+    const paragraphs = text.split("\n");
+    paragraphs.forEach(para => {
+        const words = para.split(" ");
+        let current = "";
+        words.forEach(word => {
+            const test = current ? current + " " + word : word;
+            if (ctx.measureText(test).width > maxWidth) {
+                if (current) lines.push(current);
+                current = word;
+            } else {
+                current = test;
+            }
+        });
+        if (current) lines.push(current);
+    });
+    return lines.length ? lines : [""];
+}
 
     return (
         <>
