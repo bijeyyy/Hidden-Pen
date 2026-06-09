@@ -53,14 +53,12 @@ function UserInbox() {
     const [editingReplyId, setEditingReplyId] = useState(null);
     const [editingText, setEditingText] = useState("");
     const [isExporting, setIsExporting] = useState(false);
-
     const [selectedMessageReplies, setSelectedMessageReplies] = useState([]);
     const [repliesLoading, setRepliesLoading] = useState(false);
-
     const [allReplies, setAllReplies] = useState([]);
     const [allRepliesLoading, setAllRepliesLoading] = useState(false);
-
     const [toasts, setToasts] = useState([]);
+    const exportWidth = typeof window !== "undefined" && window.innerWidth < 480 ? 360 : 480;
 
     const showToast = (message) => {
         const id = Date.now();
@@ -98,7 +96,7 @@ function UserInbox() {
 
         if (data?.length) {
             const now = new Date().toISOString;
-            
+
             await supabase
                 .from("message_reads")
                 .upsert(
@@ -426,15 +424,25 @@ function UserInbox() {
             return;
         }
 
+        const node = shareRef.current;
+
+        node.style.transform = "scale(1)";
+        node.style.willChange = "auto";
+
+        await document.fonts.ready;
+        
+        const rect = node.getBoundingClientReact();
+
         const canvas = await html2canvas(shareRef.current, {
             scale: 2,
             backgroundColor: "#ffffff",
             useCORS: true,
             allowTaint: false,
-            width: shareRef.current.scrollWidth,
-            height: shareRef.current.scrollHeight,
-            windowWidth: shareRef.current.scrollWidth,
-            windowHeight: shareRef.current.scrollHeight,
+            
+            width: rect.width,
+            height: rect.height,
+            windowWidth: rect.width,
+            windowHeight: rect.height,
         });
 
         return canvas.toDataURL("image/png");
@@ -702,8 +710,9 @@ function UserInbox() {
 
                             <div
                                 ref={shareRef}
-                                className="bg-white w-[480px] rounded-2xl overflow-hidden"
+                                className="bg-white rounded-2xl overflow-hidden"
                                 style={{
+                                    width: `${exportWidth}px`,
                                     position: "fixed",
                                     top: "0",
                                     left: "-99999px",
