@@ -44,6 +44,11 @@ function User_Dashboard() {
                 .replace(/\s+/g, "") ||
             user.email.split("@")[0].toLowerCase();
 
+        const avatar = 
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            "";
+        
         const { error: profileError } = await supabase
             .from("profiles")
             .upsert(
@@ -55,15 +60,11 @@ function User_Dashboard() {
                         user.user_metadata?.full_name ||
                         user.user_metadata?.name ||
                         "",
-                    avatar_url:
-                        user.user_metadata?.avatar_url ||
-                        user.user_metadata?.picture ||
-                        "",
+                        ...(avatar && { avatar_url: avatar }),
                     email: user.email,
             },
             {
                 onConflict: "id",
-                ignoreDuplicates: true,
             }
         );
 
@@ -153,13 +154,21 @@ function User_Dashboard() {
 
         const { error } = await supabase
             .from("message_reads")
-            .upsert(rows, {
+            .upsert(row, {
                 onConflict: "message_id,user_id",
             });
 
         if (error) {
             console.error(error);
         }
+    };
+
+    const getAvatar = (email, name) => {
+        const seed = name || email || "user";
+
+        return `https://ui-avatars.com/api/?name=${encodeURIComponent(
+            seed
+        )}&background=random&colors=fff&bold=true`;
     };
 
     useEffect(() => {
@@ -188,7 +197,10 @@ function User_Dashboard() {
             setProfileImage(
                 session.user.user_metadata?.avatar_url ||
                 session.user.user_metadata?.picture ||
-                ""
+                getAvatar(
+                    session.user.email,
+                    session.user.user_metadata?.display_name
+                )
             );
 
             await createProfileAndSettings(session.user);
@@ -200,6 +212,11 @@ function User_Dashboard() {
                 .single();
 
             setDisplayName(profile.display_name || session.user.email.split("@")[0]);
+
+            setProfileImage(
+                profile.avatar_url ||
+                getAvatar(session.user.email, profile.display_name)
+            );
 
             if (profileError) {
                 console.error("Get profile error:", profileError);

@@ -1,13 +1,39 @@
 import './App.css'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import { Navbar, Home, About, Features, Works, Footer } from './components/layout'
 import { Login, SignUp, EmailConfirmed, Forgot_Password, VerifyNotice } from './validation'
 import { User_Dashboard } from './components/User'
 import { UserFavorites, UserInbox, UserProfile, UserSettings, PublicMessages } from './components/UserActivity'
 import { useEffect } from 'react'
+import { supabase } from './lib/SupabaseClient'
 
 function ThemeManager() {
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
+        const user = session.user;
+        const avatar =
+          user.user_metadata?.avatar_url ||
+          user.user_metadata?.picture ||
+          "";
+
+          if (avatar) {
+            await supabase
+              .from("profiles")
+              .update({ avatar_url: avatar })
+              .eq("id", user.id);
+          }
+
+          if (window.location.hash.includes("access_token")) {
+            navigate("/user_settings");
+          }
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const theme = localStorage.getItem("theme");
