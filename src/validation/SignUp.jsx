@@ -85,7 +85,7 @@ function SignUp() {
         </div>
 
         <div className="flex justify-center items-center mt-5">
-          <span className="text-xs text-gray-400">Already have an account? <a href="/Login" className="text-blue-500 hover:underline">Sign In</a></span>
+          <span className="text-xs text-gray-400">Already have an account? <a href="/login" className="text-blue-500 hover:underline">Sign In</a></span>
         </div>
 
         <div className="flex justify-center items-center mt-10">

@@ -36,9 +36,7 @@ import {
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/SupabaseClient'
 
-/* =======================================================
-   AUTH GATE (SAFE - NO BLANK SCREEN)
-======================================================= */
+
 function AuthGate({ children }) {
   const location = useLocation()
   const navigate = useNavigate()
@@ -82,9 +80,6 @@ function AuthGate({ children }) {
   return children
 }
 
-/* =======================================================
-   THEME MANAGER (CLEAN + SAFE)
-======================================================= */
 function ThemeManager() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -149,9 +144,6 @@ function ThemeManager() {
   return null
 }
 
-/* =======================================================
-   APP ROOT
-======================================================= */
 function App() {
   return (
     <BrowserRouter>
