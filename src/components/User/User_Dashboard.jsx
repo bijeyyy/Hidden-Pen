@@ -3,7 +3,6 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
 import User from "../../assets/user_logo.png";
 import Notif from "../../assets/notification.png";
-import { createWebSocketModuleRunnerTransport } from "vite/module-runner";
 
 function User_Dashboard() {
     const navigate = useNavigate();
@@ -25,6 +24,7 @@ function User_Dashboard() {
     const [isnotification, setNotification] = useState(false);
     const [notifications, setNotifications] = useState([]);
     const [copied, setCopied] = useState(false);
+    const [loading, setLoading] = useState(true);
     const handleCopyLink = async () => {
         if (!hiddenLink) return;
 
@@ -172,72 +172,70 @@ function User_Dashboard() {
     };
 
     useEffect(() => {
-        const checkUser = async () => {
-            const {
-                data: { session },
-            } = await supabase.auth.getSession();
-
-            setCurrentUser(session.user);
-
-            if (!session) {
+    // Listen to auth state changes (handles refresh properly)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+            if (!session?.user) {
                 navigate("/Login");
                 return;
             }
 
-            setSessionUser(session.user);
-            setUserEmail(session.user.email);
+            const user = session.user;
 
+            setCurrentUser(user);
+            setSessionUser(user);
+            setUserEmail(user.email);
             setDisplayName(
-                session.user.user_metadata?.display_name ||
-                session.user.user_metadata?.full_name ||
-                session.user.user_metadata?.name ||
+                user.user_metadata?.display_name ||
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name ||
                 "User"
             );
-
             setProfileImage(
-                session.user.user_metadata?.avatar_url ||
-                session.user.user_metadata?.picture ||
-                getAvatar(
-                    session.user.email,
-                    session.user.user_metadata?.display_name
-                )
+                user.user_metadata?.avatar_url ||
+                user.user_metadata?.picture ||
+                getAvatar(user.email, user.user_metadata?.display_name)
             );
 
-            await createProfileAndSettings(session.user);
+            try {
+                await createProfileAndSettings(user);
 
-            const { data: profile, error: profileError } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", session.user.id)
-                .single();
+                const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq("id", user.id)
+                    .maybeSingle();
 
-            setDisplayName(profile.display_name || session.user.email.split("@")[0]);
+                if (profile) {
+                    setDisplayName(profile.display_name || user.email.split("@")[0]);
+                    setProfileImage(
+                        profile.avatar_url ||
+                        getAvatar(user.email, profile.display_name)
+                    );
+                    setHiddenLink(`${window.location.origin}/u/${profile.username}`);
+                }
 
-            setProfileImage(
-                profile.avatar_url ||
-                getAvatar(session.user.email, profile.display_name)
-            );
+                await loadDashboardMessages(user.id);
 
-            if (profileError) {
-                console.error("Get profile error:", profileError);
-                return;
+                const { data: settingsData } = await supabase
+                    .from("user_settings")
+                    .select("allow_link_sharing")
+                    .eq("user_id", user.id)
+                    .maybeSingle();
+
+                if (settingsData) setSettings(settingsData);
+
+            } catch (err) {
+                console.error("Dashboard error:", err);
+            } finally {
+                setLoading(false);
             }
+        }
+    );
 
-            setHiddenLink(`${window.location.origin}/u/${profile.username}`);
-
-            await loadDashboardMessages(session.user.id);
-
-            const { data: settingsData } = await supabase
-                .from("user_settings")
-                .select("allow_link_sharing")
-                .eq("user_id", session.user.id)
-                .single();
-
-            if (settingsData) setSettings(settingsData);
-        };
-
-        checkUser();
-    }, [navigate]);
+    // Cleanup subscription on unmount
+    return () => subscription.unsubscribe();
+}, [navigate]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
