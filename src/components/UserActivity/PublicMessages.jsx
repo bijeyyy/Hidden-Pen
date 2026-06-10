@@ -18,6 +18,7 @@ function PublicMessagePage() {
         let isMounted = true;
 
         const loadReceiver = async () => {
+            console.log("loadReceiver triggered", username);
             setLoading(true);
 
             const {
@@ -31,6 +32,9 @@ function PublicMessagePage() {
                 .select("id, username, display_name, avatar_url, email")
                 .eq("username", username)
                 .single();
+
+                console.log("profile:", profile); // ✅ dagdag
+console.log("profile error:", error); // ✅ dagdag
 
             if (error || !profile) {
                 if (isMounted) setLoading(false);
@@ -85,10 +89,11 @@ function PublicMessagePage() {
             setError("Login required to send messages.");
             return;
         }
+        
 
         const { error } = await supabase.from("messages").insert({
             receiver_id: receiver.id,
-            receiver_email: recevier.email,
+            receiver_email: receiver.email,
             message: message.trim(),
             sender_id: currentUser?.id ?? null,
         });
