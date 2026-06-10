@@ -74,48 +74,48 @@ function UserProfile() {
   };
 
   const handleSave = async () => {
-  console.log("SAVE CLICKED");
-  setSaving(true);
+    console.log("SAVE CLICKED");
+    setSaving(true);
 
-  try {
-    const { data: { session } } = await supabase.auth.getSession();
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
 
-    if (!session) return;
+      if (!session) return;
 
-    const userId = session.user.id;
+      const userId = session.user.id;
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        display_name: profile.fullname,
-        username: profile.username,
-        phone: profile.phone,
-        avatar_url: profile.avatarUrl,
-      })
-      .eq("id", userId);
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          display_name: profile.fullname,
+          username: profile.username,
+          phone: profile.phone,
+          avatar_url: profile.avatarUrl,
+        })
+        .eq("id", userId);
 
-    console.log("PROFILE UPDATE DONE:", error);
+      console.log("PROFILE UPDATE DONE:", error);
 
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    supabase.auth.updateUser({
-      data: {
-        display_name: profile.fullname,
-        full_name: profile.fullname,
+      if (error) {
+        alert(error.message);
+        return;
       }
-    });
 
-    setSuccessModal(true);
+      await supabase.auth.updateUser({
+        data: {
+          display_name: profile.fullname,
+          full_name: profile.fullname,
+        }
+      });
 
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setSaving(false);
-  }
-};
+      setSuccessModal(true);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleCopyLink = async () => {
     await navigator.clipboard.writeText(hiddenLink);
@@ -293,25 +293,25 @@ function UserProfile() {
       </div>
 
       {successModal && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-    <div className="w-full max-w-sm bg-card border border-default rounded-base shadow-lg p-6 text-center">
-      <h2 className="text-xl font-semibold text-heading mb-2">
-        Profile Updated
-      </h2>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-sm bg-card border border-default rounded-base shadow-lg p-6 text-center">
+            <h2 className="text-xl font-semibold text-heading mb-2">
+              Profile Updated
+            </h2>
 
-      <p className="text-body text-sm mb-6">
-        Your account information has been saved successfully.
-      </p>
+            <p className="text-body text-sm mb-6">
+              Your account information has been saved successfully.
+            </p>
 
-      <button
-        onClick={() => setSuccessModal(false)}
-        className="bg-button hover:bg-button-hover text-white px-5 py-2 rounded-base"
-      >
-        OK
-      </button>
-    </div>
-  </div>
-)}
+            <button
+              onClick={() => setSuccessModal(false)}
+              className="bg-button hover:bg-button-hover text-white px-5 py-2 rounded-base"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }
