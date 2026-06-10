@@ -1,42 +1,127 @@
 import './App.css'
-import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
-import { Navbar, Home, About, Features, Works, Footer } from './components/layout'
-import { Login, SignUp, EmailConfirmed, Forgot_Password, VerifyNotice } from './validation'
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  useLocation,
+  useNavigate
+} from 'react-router-dom'
+
+import {
+  Navbar,
+  Home,
+  About,
+  Features,
+  Works,
+  Footer
+} from './components/layout'
+
+import {
+  Login,
+  SignUp,
+  EmailConfirmed,
+  Forgot_Password,
+  VerifyNotice
+} from './validation'
+
 import { User_Dashboard } from './components/User'
-import { UserFavorites, UserInbox, UserProfile, UserSettings, PublicMessages } from './components/UserActivity'
-import { useEffect } from 'react'
+import {
+  UserFavorites,
+  UserInbox,
+  UserProfile,
+  UserSettings,
+  PublicMessages
+} from './components/UserActivity'
+
+import { useEffect, useState } from 'react'
 import { supabase } from './lib/SupabaseClient'
 
-function ThemeManager() {
-  const location = useLocation();
-  const navigate = useNavigate();
+/* =======================================================
+   AUTH GATE (SAFE - NO BLANK SCREEN)
+======================================================= */
+function AuthGate({ children }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
-        const user = session.user;
-        const avatar =
-          user.user_metadata?.avatar_url ||
-          user.user_metadata?.picture ||
-          "";
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getUser()
+      const user = data?.user
+
+      const publicPages = [
+        "/",
+        "/login",
+        "/signup",
+        "/VerifyNotice",
+        "/EmailConfirmed",
+        "/forgot_password"
+      ]
+
+      const isPublic = publicPages.includes(location.pathname)
+
+      if (!user && !isPublic) {
+        navigate("/login")
+        return
+      }
+
+      setReady(true)
+    }
+
+    checkSession()
+  }, [location.pathname])
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg">
+        <p className="text-body">Loading...</p>
+      </div>
+    )
+  }
+
+  return children
+}
+
+/* =======================================================
+   THEME MANAGER (CLEAN + SAFE)
+======================================================= */
+function ThemeManager() {
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const { data: { subscription } } =
+      supabase.auth.onAuthStateChange(async (event, session) => {
+
+        if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
+          const user = session.user
+
+          const avatar =
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            ""
 
           if (avatar) {
             await supabase
               .from("profiles")
               .update({ avatar_url: avatar })
-              .eq("id", user.id);
+              .eq("id", user.id)
           }
 
-          if (window.location.hash.includes("access_token")) {
-            navigate("/user_settings");
+          const hash = window.location.hash
+
+          if (hash && hash.includes("access_token")) {
+            window.history.replaceState(null, "", window.location.pathname)
+            navigate("/user_settings")
           }
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+        }
+      })
+
+    return () => subscription.unsubscribe()
+  }, [])
 
   useEffect(() => {
-    const theme = localStorage.getItem("theme");
+    const theme = localStorage.getItem("theme")
 
     const publicPages = [
       "/",
@@ -45,135 +130,71 @@ function ThemeManager() {
       "/VerifyNotice",
       "/EmailConfirmed",
       "/forgot_password"
-    ];
+    ]
 
-    const isPublicPage = publicPages.includes(location.pathname);
+    const isPublicPage = publicPages.includes(location.pathname)
 
     if (isPublicPage) {
-      document.documentElement.classList.remove("dark");
-      return;
+      document.documentElement.classList.remove("dark")
+      return
     }
 
     if (theme === "dark") {
-      document.documentElement.classList.add("dark");
+      document.documentElement.classList.add("dark")
     } else {
-      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.remove("dark")
     }
+  }, [])
 
-  }, [location.pathname]);
-
-  return null;
+  return null
 }
 
+/* =======================================================
+   APP ROOT
+======================================================= */
 function App() {
-
   return (
-    <>
+    <BrowserRouter>
 
-      <BrowserRouter>
+      <AuthGate>
         <ThemeManager />
+
         <Routes>
+
+          {/* HOME */}
           <Route path="/" element={
             <div className='grid justify-center items-center'>
               <Navbar />
-
-              <section id="home">
-                <Home />
-              </section>
-
-              <section id="about">
-                <About />
-              </section>
-
-              <section id="features">
-                <Features />
-              </section>
-
-              <section id="works">
-                <Works />
-              </section>
-
+              <section id="home"><Home /></section>
+              <section id="about"><About /></section>
+              <section id="features"><Features /></section>
+              <section id="works"><Works /></section>
               <Footer />
             </div>
           } />
 
-          {/* LOGIN */}
-          <Route path="/login" element={
-            <div className='grid justify-center items-center mt-12'>
-              <Login />
-            </div>
-          } />
+          {/* AUTH */}
+          <Route path="/login" element={<div className='grid justify-center items-center mt-12'><Login /></div>} />
+          <Route path="/signup" element={<div className='grid justify-center items-center mt-8'><SignUp /></div>} />
+          <Route path="/VerifyNotice" element={<VerifyNotice />} />
+          <Route path="/EmailConfirmed" element={<EmailConfirmed />} />
+          <Route path="/forgot_password" element={<div className='grid justify-center items-center mt-32'><Forgot_Password /></div>} />
 
-          {/* SIGNUP */}
-          <Route path="/signup" element={
-            <div className='grid justify-center items-center mt-8'>
-              <SignUp />
-            </div>
-          } />
+          {/* USER */}
+          <Route path="/user_dashboard" element={<User_Dashboard />} />
+          <Route path="/user_inbox" element={<UserInbox />} />
+          <Route path="/user_favorites" element={<UserFavorites />} />
+          <Route path="/user_settings" element={<UserSettings />} />
+          <Route path="/user_profile" element={<UserProfile />} />
 
-          {/* VERIFY NOTICE */}
-          <Route path="/VerifyNotice" element={
-            <VerifyNotice />
-          } />
-
-          {/* EMAIL CONFIRMATION */}
-          <Route path="/EmailConfirmed" element={
-            <EmailConfirmed />
-          } />
-
-          {/* FORGOR PASSWORD */}
-          <Route path="/forgot_password" element={
-            <div className='grid justify-center items-center mt-32'>
-              <Forgot_Password />
-            </div>
-          } />
-
-          {/* USER DASHBOARD */}
-          <Route path="/user_dashboard" element={
-            <div>
-              <User_Dashboard />
-            </div>
-          } />
-
-          {/* FAVORITES INBOX */}
-          <Route path="/user_inbox" element={
-            <div>
-              <UserInbox />
-            </div>
-          } />
-
-          {/* USER FAVORITES */}
-          <Route path="/user_favorites" element={
-            <div>
-              <UserFavorites />
-            </div>
-          } />
-
-          {/* USER SETTINGS */}
-          <Route path="/user_settings" element={
-            <div>
-              <UserSettings />
-            </div>
-          } />
-
-          {/* USER PROFILE */}
-          <Route path="/user_profile" element={
-            <div>
-              <UserProfile />
-            </div>
-          } />
-
-          {/* USER MESSAGES */}
-          <Route path="/u/:username" element={
-            <div>
-              <PublicMessages />
-            </div>
-          } />
+          {/* PUBLIC */}
+          <Route path="/u/:username" element={<PublicMessages />} />
 
         </Routes>
-      </BrowserRouter>
-    </>
+      </AuthGate>
+
+    </BrowserRouter>
   )
 }
 
-export default App;
+export default App

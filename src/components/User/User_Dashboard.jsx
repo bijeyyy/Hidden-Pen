@@ -199,9 +199,6 @@ function User_Dashboard() {
             getAvatar(user.email, user.user_metadata?.display_name)
         );
 
-        // ✅ Dashboard visible na — hindi na naghihintay sa lahat ng data
-        if (mounted) setLoading(false);
-
         // Load data sa background
         try {
             await createProfileAndSettings(user);
@@ -233,6 +230,8 @@ function User_Dashboard() {
 
         } catch (err) {
             console.error("Dashboard error:", err);
+        } finally {
+            if (mounted) setLoading(false);
         }
     };
 
