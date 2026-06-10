@@ -88,61 +88,74 @@ function User_Dashboard() {
     };
 
     const loadDashboardMessages = async (userId) => {
-        const { data, error } = await supabase
-            .from("messages")
-            .select(`
-                *,
-                message_reads (
-                    user_id
-                )
-            `)
-            .eq("receiver_id", userId)
-            .order("created_at", { ascending: false });
+    const { data, error } = await supabase
+        .from("messages")
+        .select(`
+            *,
+            message_reads (
+                user_id
+            ),
+            message_reactions (
+                id,
+                user_id,
+                is_loved,
+                created_at
+            )
+        `)
+        .eq("receiver_id", userId)
+        .order("created_at", { ascending: false });
 
-        if (error) {
-            console.error("Dashboard messages error:", error);
-            return;
-        }
+    if (error) {
+        console.error("Dashboard messages error:", error);
+        return;
+    }
 
-        const messages = data || [];
-        const today = new Date();
-        const todayDate = today.toDateString();
+    const messages = data || [];
+    const today = new Date();
+    const todayDate = today.toDateString();
 
-        const todayMessages = messages.filter((msg) => {
-            const messageDate = new Date(msg.created_at).toDateString();
-            return messageDate === todayDate;
+    const todayMessages = messages.filter((msg) => {
+        const messageDate = new Date(msg.created_at).toDateString();
+        return messageDate === todayDate;
+    });
+
+    const unreadMessages = messages.filter(
+        (msg) =>
+            !msg.message_reads?.some(
+                (read) => read.user_id === userId
+            )
+    );
+    
+    const lovedMessages = messages
+        .filter((msg) =>
+            msg.message_reactions?.some(
+                (r) => r.user_id === userId && r.is_loved === true
+            )
+        )
+        .sort((a, b) => {
+            const aLoved = a.message_reactions?.find(r => r.user_id === userId);
+            const bLoved = b.message_reactions?.find(r => r.user_id === userId);
+            return new Date(aLoved?.created_at) - new Date(bLoved?.created_at);
         });
 
-        const unreadMessages = messages.filter(
-            (msg) =>
-                !msg.message_reads?.some(
-                    (read) => read.user_id === userId
-                )
-        );
+    setMessageCount(messages.length);
+    setUnreadCount(unreadMessages.length);
+    setTodayCount(todayMessages.length);
 
-        const lovedMessages = messages
-            .filter((msg) => msg.is_loved)
-            .sort((a, b) => new Date(a.loved_at) - new Date(b.loved_at));
+    setRecentMessages(messages.slice(0, 3));
+    setFavoriteMessages(lovedMessages.slice(0, 3));
+    setFavoriteCount(lovedMessages.length);
 
-        setMessageCount(messages.length);
-        setUnreadCount(unreadMessages.length);
-        setTodayCount(todayMessages.length);
-
-        setRecentMessages(messages.slice(0, 3));
-        setFavoriteMessages(lovedMessages.slice(0, 3));
-        setFavoriteCount(lovedMessages.length);
-
-        setNotifications(
-
-            unreadMessages
-                .slice(0, 5)
-                .map((msg) => ({
-                    id: msg.id,
-                    message: msg.message,
-                    time: new Date(msg.created_at).toLocaleString(),
-                }))
-        );
-    };
+    setNotifications(
+        unreadMessages
+            .slice(0, 5)
+            .map((msg) => ({
+                id: msg.id,
+                message: msg.message,
+                time: new Date(msg.created_at).toLocaleString(),
+            }))
+    );
+};
 
     const markNotificationsAsRead = async (messageIds, userId) => {
         if (!messageIds.length) return;
