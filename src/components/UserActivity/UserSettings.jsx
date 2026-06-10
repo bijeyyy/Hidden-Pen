@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/SupabaseClient";
+import { useAuth } from "../../context/AuthContext";
 
 const VAPID_PUBLIC_KEY = import.meta.env.VITE_VAPID_PUBLIC_KEY;
 
@@ -20,6 +21,7 @@ function UserSettings() {
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [providers, setProviders] = useState([]);
     const [pushSupported, setPushSupported] = useState(false);
+    const { user, loading: authLoading } = useAuth();
 
     const [settings, setSettings] = useState({
         anon_messages: true,
@@ -78,21 +80,23 @@ function UserSettings() {
         let initialized = false;
 
         const loadSettings = async (session) => {
-            if (!session?.user || initialized) return;
+            if (!session?.user) return;
+            if (initialized) return;
+
             initialized = true;
 
-            const user = session.user;
+            const currentUser = session.user;
 
             if (mounted) {
-                setUserId(user.id);
-                setUserEmail(user.email);
-                setProviders(user.app_metadata?.providers || []);
+                setUserId(currentUser.id);
+                setUserEmail(currentUser.email);
+                setProviders(currentUser.app_metadata?.providers || []);
             }
 
             const { data: profile } = await supabase
                 .from("profiles")
                 .select("username")
-                .eq("id", user.id)
+                .eq("id", currentUser.id)
                 .maybeSingle();
 
             if (mounted && profile) setUsername(profile.username);
@@ -100,7 +104,7 @@ function UserSettings() {
             const { data } = await supabase
                 .from("user_settings")
                 .select("*")
-                .eq("user_id", user.id)
+                .eq("user_id", currentUser.id)
                 .maybeSingle();
 
             const savedTheme = localStorage.getItem("theme");
@@ -116,7 +120,7 @@ function UserSettings() {
 
             if (!data) {
                 await supabase.from("user_settings").insert({
-                    user_id: user.id,
+                    user_id: currentUser.id,
                     ...syncedSettings,
                 });
             }
@@ -127,14 +131,20 @@ function UserSettings() {
             }
         };
 
-        // Try getSession first (fast path)
-        supabase.auth.getSession().then(({ data: { session } }) => {
+        const init = async () => {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+
             if (session) {
                 loadSettings(session);
+            } else if (mounted) {
+                setLoading(false);
             }
-        });
+        };
 
-        // onAuthStateChange handles late session restore
+        init();
+
         const { data: { subscription } } = supabase.auth.onAuthStateChange(
             (event, session) => {
                 if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
@@ -262,7 +272,7 @@ function UserSettings() {
         }
     };
 
-    if (loading) {
+    if (authLoading) {
         return <div className="p-10 text-center">Loading settings...</div>;
     }
 

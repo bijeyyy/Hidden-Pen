@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
 import User from "../../assets/user_logo.png";
 import Notif from "../../assets/notification.png";
+import { useAuth } from "../../context/AuthContext";
 
 function User_Dashboard() {
     const navigate = useNavigate();
@@ -25,6 +26,7 @@ function User_Dashboard() {
     const [notifications, setNotifications] = useState([]);
     const [copied, setCopied] = useState(false);
     const [loading, setLoading] = useState(true);
+    const { user, loading: authLoading } = useAuth();
     const handleCopyLink = async () => {
         if (!hiddenLink) return;
 
@@ -88,9 +90,9 @@ function User_Dashboard() {
     };
 
     const loadDashboardMessages = async (userId) => {
-    const { data, error } = await supabase
-        .from("messages")
-        .select(`
+        const { data, error } = await supabase
+            .from("messages")
+            .select(`
             *,
             message_reads (
                 user_id
@@ -102,60 +104,60 @@ function User_Dashboard() {
                 created_at
             )
         `)
-        .eq("receiver_id", userId)
-        .order("created_at", { ascending: false });
+            .eq("receiver_id", userId)
+            .order("created_at", { ascending: false });
 
-    if (error) {
-        console.error("Dashboard messages error:", error);
-        return;
-    }
+        if (error) {
+            console.error("Dashboard messages error:", error);
+            return;
+        }
 
-    const messages = data || [];
-    const today = new Date();
-    const todayDate = today.toDateString();
+        const messages = data || [];
+        const today = new Date();
+        const todayDate = today.toDateString();
 
-    const todayMessages = messages.filter((msg) => {
-        const messageDate = new Date(msg.created_at).toDateString();
-        return messageDate === todayDate;
-    });
-
-    const unreadMessages = messages.filter(
-        (msg) =>
-            !msg.message_reads?.some(
-                (read) => read.user_id === userId
-            )
-    );
-    
-    const lovedMessages = messages
-        .filter((msg) =>
-            msg.message_reactions?.some(
-                (r) => r.user_id === userId && r.is_loved === true
-            )
-        )
-        .sort((a, b) => {
-            const aLoved = a.message_reactions?.find(r => r.user_id === userId);
-            const bLoved = b.message_reactions?.find(r => r.user_id === userId);
-            return new Date(aLoved?.created_at) - new Date(bLoved?.created_at);
+        const todayMessages = messages.filter((msg) => {
+            const messageDate = new Date(msg.created_at).toDateString();
+            return messageDate === todayDate;
         });
 
-    setMessageCount(messages.length);
-    setUnreadCount(unreadMessages.length);
-    setTodayCount(todayMessages.length);
+        const unreadMessages = messages.filter(
+            (msg) =>
+                !msg.message_reads?.some(
+                    (read) => read.user_id === userId
+                )
+        );
 
-    setRecentMessages(messages.slice(0, 3));
-    setFavoriteMessages(lovedMessages.slice(0, 3));
-    setFavoriteCount(lovedMessages.length);
+        const lovedMessages = messages
+            .filter((msg) =>
+                msg.message_reactions?.some(
+                    (r) => r.user_id === userId && r.is_loved === true
+                )
+            )
+            .sort((a, b) => {
+                const aLoved = a.message_reactions?.find(r => r.user_id === userId);
+                const bLoved = b.message_reactions?.find(r => r.user_id === userId);
+                return new Date(aLoved?.created_at) - new Date(bLoved?.created_at);
+            });
 
-    setNotifications(
-        unreadMessages
-            .slice(0, 5)
-            .map((msg) => ({
-                id: msg.id,
-                message: msg.message,
-                time: new Date(msg.created_at).toLocaleString(),
-            }))
-    );
-};
+        setMessageCount(messages.length);
+        setUnreadCount(unreadMessages.length);
+        setTodayCount(todayMessages.length);
+
+        setRecentMessages(messages.slice(0, 3));
+        setFavoriteMessages(lovedMessages.slice(0, 3));
+        setFavoriteCount(lovedMessages.length);
+
+        setNotifications(
+            unreadMessages
+                .slice(0, 5)
+                .map((msg) => ({
+                    id: msg.id,
+                    message: msg.message,
+                    time: new Date(msg.created_at).toLocaleString(),
+                }))
+        );
+    };
 
     const markNotificationsAsRead = async (messageIds, userId) => {
         if (!messageIds.length) return;
@@ -185,95 +187,92 @@ function User_Dashboard() {
     };
 
     useEffect(() => {
-    let mounted = true;
+        let mounted = true;
 
-    const init = async () => {
-        const { data: { session } } = await supabase.auth.getSession();
+        const init = async () => {
+            if (authLoading) return;
 
-        if (!session?.user) {
-            if (mounted) setLoading(false);
-            navigate("/Login");
-            return;
-        }
-
-        const user = session.user;
-        setCurrentUser(user);
-        setSessionUser(user);
-        setUserEmail(user.email);
-        setDisplayName(
-            user.user_metadata?.display_name ||
-            user.user_metadata?.full_name ||
-            user.user_metadata?.name ||
-            "User"
-        );
-        setProfileImage(
-            user.user_metadata?.avatar_url ||
-            user.user_metadata?.picture ||
-            getAvatar(user.email, user.user_metadata?.display_name)
-        );
-
-        // Load data sa background
-        try {
-            await createProfileAndSettings(user);
-
-            const { data: profile } = await supabase
-                .from("profiles")
-                .select("*")
-                .eq("id", user.id)
-                .maybeSingle();
-
-            if (profile?.username) {
-                setDisplayName(profile.display_name || user.user_metadata?.full_name || user.email.split("@")[0]);
-                setProfileImage(profile.avatar_url || getAvatar(user.email, profile.display_name));
-                setHiddenLink(`${window.location.origin}/u/${profile.username}`);
-            } else {
-                const fallbackUsername = user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
-                setHiddenLink(`${window.location.origin}/u/${fallbackUsername}`);
+            if (!user) {
+                navigate("/login");
+                return;
             }
 
-            await loadDashboardMessages(user.id);
+            setCurrentUser(user);
+            setSessionUser(user);
+            setUserEmail(user.email);
+            setDisplayName(
+                user.user_metadata?.display_name ||
+                user.user_metadata?.full_name ||
+                user.user_metadata?.name ||
+                "User"
+            );
+            setProfileImage(
+                user.user_metadata?.avatar_url ||
+                user.user_metadata?.picture ||
+                getAvatar(user.email, user.user_metadata?.display_name)
+            );
 
-            const { data: settingsData } = await supabase
-                .from("user_settings")
-                .select("allow_link_sharing")
-                .eq("user_id", user.id)
-                .maybeSingle();
+            try {
+                await createProfileAndSettings(user);
 
-            if (settingsData) setSettings(settingsData);
+                const { data: profile } = await supabase
+                    .from("profiles")
+                    .select("*")
+                    .eq("id", user.id)
+                    .maybeSingle();
 
-        } catch (err) {
-            console.error("Dashboard error:", err);
-        } finally {
-            if (mounted) setLoading(false);
-        }
-    };
+                if (profile?.username) {
+                    setDisplayName(profile.display_name || user.user_metadata?.full_name || user.email.split("@")[0]);
+                    setProfileImage(profile.avatar_url || getAvatar(user.email, profile.display_name));
+                    setHiddenLink(`${window.location.origin}/u/${profile.username}`);
+                } else {
+                    const fallbackUsername = user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+                    setHiddenLink(`${window.location.origin}/u/${fallbackUsername}`);
+                }
 
-    init();
+                await loadDashboardMessages(user.id);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (event) => {
-            if (event === "SIGNED_OUT") navigate("/Login");
-        }
-    );
+                const { data: settingsData } = await supabase
+                    .from("user_settings")
+                    .select("allow_link_sharing")
+                    .eq("user_id", user.id)
+                    .maybeSingle();
 
-    return () => {
-        mounted = false;
-        subscription.unsubscribe();
-    };
-}, [navigate]);
+                if (settingsData) setSettings(settingsData);
+
+            } catch (err) {
+                console.error("Dashboard error:", err);
+            } finally {
+                if (mounted) setLoading(false);
+            }
+        };
+
+        init();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (event) => {
+                if (event === "SIGNED_OUT") navigate("/Login");
+            }
+        );
+
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
+    }, [navigate]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
         navigate("/Login");
     };
 
-    if (loading) {
-    return (
-        <div className="min-h-screen bg-bg flex items-center justify-center">
-            <p className="text-body">Loading dashboard...</p>
-        </div>
-    );
-}
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-bg flex items-center justify-center">
+                <p className="text-body">Loading dashboard...</p>
+            </div>
+        );
+    }
 
     return (
         <>
@@ -293,7 +292,7 @@ function User_Dashboard() {
 
                                 if (opening && notifications.length > 0) {
                                     const ids = notifications.map((n) => n.id);
-                                    await markNotificationsAsRead(ids, sessionUser.id);
+                                    await markNotificationsAsRead(ids, session.id);
                                     setUnreadCount(0);
                                     setNotifications([]);
                                 }

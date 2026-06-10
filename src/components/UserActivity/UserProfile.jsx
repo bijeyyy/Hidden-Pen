@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../../lib/SupabaseClient";
 import User from "../../assets/user_logo.png";
 import { AuthError } from "@supabase/server";
+import { useAuth } from "../../context/AuthContext";
 
 function UserProfile() {
   const navigate = useNavigate();
@@ -13,6 +14,8 @@ function UserProfile() {
   const [copied, setCopied] = useState(false);
   const [successModal, setSuccessModal] = useState(false);
   const [settings, setSettings] = useState({ allow_link_sharing: true, });
+  const { user, loading: authLoading } = useAuth();
+
 
   const [profile, setProfile] = useState({
     fullname: "",
@@ -24,17 +27,12 @@ function UserProfile() {
 
   useEffect(() => {
     const getUserProfile = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
+      if (authLoading) return;
 
-      if (!session) {
-        setLoading(false);
+      if (!user) {
         navigate("/login");
         return;
       }
-
-      const user = session.user;
 
       const { data: profileData, error } = await supabase
         .from("profiles")
@@ -62,7 +60,7 @@ function UserProfile() {
     };
 
     getUserProfile();
-  }, [navigate]);
+  }, [navigate, user, authLoading]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -126,7 +124,7 @@ function UserProfile() {
     }, 2000);
   };
 
-  if (loading) {
+  if (authLoading) {
     return (
       <div className="min-h-screen bg-bg flex items-center justify-center">
         <p className="text-body">Loading profile...</p>
@@ -251,14 +249,14 @@ function UserProfile() {
                       {hiddenLink}
                     </a>
                   ) : (
-                    <p className="text-sm text-text-secondary">
+                    <span className="text-sm text-text-secondary">
                       Creating your link...
-                    </p>
+                    </span>
                   )
                 ) : (
-                  <p className="text-sm text-text-secondary">
+                  <span className="text-sm text-text-secondary">
                     Link is currently disabled
-                  </p>
+                  </span>
                 )}
               </p>
 
