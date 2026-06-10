@@ -36,6 +36,8 @@ import {
 import { useEffect, useState } from 'react'
 import { supabase } from './lib/SupabaseClient'
 
+// ← LABAS ng component, hindi nare-reset sa remount
+let sessionChecked = false
 
 function AuthGate({ children }) {
   const location = useLocation()
@@ -43,9 +45,11 @@ function AuthGate({ children }) {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
+
     const checkSession = async () => {
-      const { data } = await supabase.auth.getUser()
-      const user = data?.user
+      const { data } = await supabase.auth.getSession()
+      const user = data?.session?.user
 
       const publicPages = [
         "/",
@@ -56,17 +60,26 @@ function AuthGate({ children }) {
         "/forgot_password"
       ]
 
-      const isPublic = publicPages.includes(location.pathname)
+      const isPublic =
+        publicPages.includes(location.pathname) ||
+        location.pathname.startsWith("/u/")
 
-      if (!user && !isPublic) {
-        navigate("/login")
-        return
+      if (!cancelled) {
+        if (!user && !isPublic) {
+          navigate("/login")
+        }
+        sessionChecked = true
+        setReady(true)
       }
+    }
 
+    if (sessionChecked) {
       setReady(true)
+      return
     }
 
     checkSession()
+    return () => { cancelled = true }
   }, [location.pathname])
 
   if (!ready) {
@@ -87,7 +100,6 @@ function ThemeManager() {
   useEffect(() => {
     const { data: { subscription } } =
       supabase.auth.onAuthStateChange(async (event, session) => {
-
         if ((event === "SIGNED_IN" || event === "USER_UPDATED") && session?.user) {
           const user = session.user
 
@@ -104,7 +116,6 @@ function ThemeManager() {
           }
 
           const hash = window.location.hash
-
           if (hash && hash.includes("access_token")) {
             window.history.replaceState(null, "", window.location.pathname)
             navigate("/user_settings")
@@ -139,7 +150,7 @@ function ThemeManager() {
     } else {
       document.documentElement.classList.remove("dark")
     }
-  }, [])
+  }, [location.pathname])  // ← AYOS: idagdag ang dependency
 
   return null
 }
@@ -147,7 +158,6 @@ function ThemeManager() {
 function App() {
   return (
     <BrowserRouter>
-
       <AuthGate>
         <ThemeManager />
 
@@ -184,7 +194,6 @@ function App() {
 
         </Routes>
       </AuthGate>
-
     </BrowserRouter>
   )
 }
