@@ -44,11 +44,11 @@ function User_Dashboard() {
                 .replace(/\s+/g, "") ||
             user.email.split("@")[0].toLowerCase();
 
-        const avatar = 
+        const avatar =
             user.user_metadata?.avatar_url ||
             user.user_metadata?.picture ||
             "";
-        
+
         const { error: profileError } = await supabase
             .from("profiles")
             .upsert(
@@ -60,13 +60,13 @@ function User_Dashboard() {
                         user.user_metadata?.full_name ||
                         user.user_metadata?.name ||
                         "",
-                        ...(avatar && { avatar_url: avatar }),
+                    ...(avatar && { avatar_url: avatar }),
                     email: user.email,
-            },
-            {
-                onConflict: "id",
-            }
-        );
+                },
+                {
+                    onConflict: "id",
+                }
+            );
 
         if (profileError) {
             console.error("Profile error:", profileError);
@@ -172,75 +172,96 @@ function User_Dashboard() {
     };
 
     useEffect(() => {
-    // Listen to auth state changes (handles refresh properly)
+    let mounted = true;
+
+    const init = async () => {
+        const { data: { session } } = await supabase.auth.getSession();
+
+        if (!session?.user) {
+            if (mounted) setLoading(false);
+            navigate("/Login");
+            return;
+        }
+
+        const user = session.user;
+        setCurrentUser(user);
+        setSessionUser(user);
+        setUserEmail(user.email);
+        setDisplayName(
+            user.user_metadata?.display_name ||
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            "User"
+        );
+        setProfileImage(
+            user.user_metadata?.avatar_url ||
+            user.user_metadata?.picture ||
+            getAvatar(user.email, user.user_metadata?.display_name)
+        );
+
+        // ✅ Dashboard visible na — hindi na naghihintay sa lahat ng data
+        if (mounted) setLoading(false);
+
+        // Load data sa background
+        try {
+            await createProfileAndSettings(user);
+
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("*")
+                .eq("id", user.id)
+                .maybeSingle();
+
+            if (profile?.username) {
+                setDisplayName(profile.display_name || user.user_metadata?.full_name || user.email.split("@")[0]);
+                setProfileImage(profile.avatar_url || getAvatar(user.email, profile.display_name));
+                setHiddenLink(`${window.location.origin}/u/${profile.username}`);
+            } else {
+                const fallbackUsername = user.email.split("@")[0].toLowerCase().replace(/[^a-z0-9]/g, "");
+                setHiddenLink(`${window.location.origin}/u/${fallbackUsername}`);
+            }
+
+            await loadDashboardMessages(user.id);
+
+            const { data: settingsData } = await supabase
+                .from("user_settings")
+                .select("allow_link_sharing")
+                .eq("user_id", user.id)
+                .maybeSingle();
+
+            if (settingsData) setSettings(settingsData);
+
+        } catch (err) {
+            console.error("Dashboard error:", err);
+        }
+    };
+
+    init();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-            if (!session?.user) {
-                navigate("/Login");
-                return;
-            }
-
-            const user = session.user;
-
-            setCurrentUser(user);
-            setSessionUser(user);
-            setUserEmail(user.email);
-            setDisplayName(
-                user.user_metadata?.display_name ||
-                user.user_metadata?.full_name ||
-                user.user_metadata?.name ||
-                "User"
-            );
-            setProfileImage(
-                user.user_metadata?.avatar_url ||
-                user.user_metadata?.picture ||
-                getAvatar(user.email, user.user_metadata?.display_name)
-            );
-
-            try {
-                await createProfileAndSettings(user);
-
-                const { data: profile } = await supabase
-                    .from("profiles")
-                    .select("*")
-                    .eq("id", user.id)
-                    .maybeSingle();
-
-                if (profile) {
-                    setDisplayName(profile.display_name || user.email.split("@")[0]);
-                    setProfileImage(
-                        profile.avatar_url ||
-                        getAvatar(user.email, profile.display_name)
-                    );
-                    setHiddenLink(`${window.location.origin}/u/${profile.username}`);
-                }
-
-                await loadDashboardMessages(user.id);
-
-                const { data: settingsData } = await supabase
-                    .from("user_settings")
-                    .select("allow_link_sharing")
-                    .eq("user_id", user.id)
-                    .maybeSingle();
-
-                if (settingsData) setSettings(settingsData);
-
-            } catch (err) {
-                console.error("Dashboard error:", err);
-            } finally {
-                setLoading(false);
-            }
+        (event) => {
+            if (event === "SIGNED_OUT") navigate("/Login");
         }
     );
 
-    // Cleanup subscription on unmount
-    return () => subscription.unsubscribe();
+    return () => {
+        mounted = false;
+        subscription.unsubscribe();
+    };
 }, [navigate]);
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        navigate("/");
+        navigate("/Login");
     };
+
+    if (loading) {
+    return (
+        <div className="min-h-screen bg-bg flex items-center justify-center">
+            <p className="text-body">Loading dashboard...</p>
+        </div>
+    );
+}
 
     return (
         <>
@@ -266,8 +287,8 @@ function User_Dashboard() {
                                 }
                             }}
                             className="relative inline-flex items-center justify-center w-10 h-10">
-                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" className="size-7 text-primary cursor-pointer">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="size-7 text-primary cursor-pointer">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                             </svg>
                             {unreadCount > 0 && !isnotification && (
                                 <span className="absolute -top-2 -right-2 min-w-5 h-5 px-1 rounded-full bg-red-500 text-white text-xs font-bold flex items-center justify-center">

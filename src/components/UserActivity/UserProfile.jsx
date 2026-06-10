@@ -14,12 +14,11 @@ function UserProfile() {
   const [settings, setSettings] = useState({ allow_link_sharing: true, });
 
   const [profile, setProfile] = useState({
-    fullName: "",
+    fullname: "",
     username: "",
     email: "",
     phone: "",
     avatarUrl: "",
-    hiddenLink: "",
   });
 
   useEffect(() => {
@@ -29,7 +28,8 @@ function UserProfile() {
       } = await supabase.auth.getSession();
 
       if (!session) {
-        navigate("/Login");
+        setLoading(false);
+        navigate("/login");
         return;
       }
 
@@ -40,6 +40,12 @@ function UserProfile() {
         .select("*")
         .eq("id", user.id)
         .single();
+
+      if (error || !profileData) {
+        console.error(error);
+        setLoading(false);
+        return;
+      }
 
       setProfile({
         fullname: profileData.display_name || "",
@@ -88,6 +94,7 @@ function UserProfile() {
     
 
     if (error) {
+      setSaving(false);
       alert(error.message);
       return;
     }
@@ -104,7 +111,7 @@ function UserProfile() {
   };
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(profile.hiddenLink);
+    await navigator.clipboard.writeText(hiddenLink);
     setCopied(true);
 
     setTimeout(() => {

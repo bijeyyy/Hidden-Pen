@@ -95,7 +95,7 @@ function UserInbox() {
         }
 
         if (data?.length) {
-            const now = new Date().toISOString;
+            const now = new Date().toISOString();
 
             await supabase
                 .from("message_reads")

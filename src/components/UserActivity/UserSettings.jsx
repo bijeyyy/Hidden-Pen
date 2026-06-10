@@ -19,18 +19,13 @@ function UserSettings() {
     const [passwordMsg, setPasswordMsg] = useState("");
     const [passwordLoading, setPasswordLoading] = useState(false);
     const [providers, setProviders] = useState([]);
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [showSuccessModal, setShowSuccessModal] = useState(false);
     const [pushSupported, setPushSupported] = useState(false);
 
     const [settings, setSettings] = useState({
         anon_messages: true,
         allow_link_sharing: true,
-
         msg_notifications: true,
-
         dark_mode: false,
-
         show_timestamps: true,
     });
 
@@ -75,32 +70,38 @@ function UserSettings() {
     );
 
     useEffect(() => {
-        const loadSettings = async () => {
-            setLoading(true);
+        setPushSupported("serviceWorker" in navigator && "PushManager" in window);
+    }, []);
 
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+    useEffect(() => {
+        let mounted = true;
+        let initialized = false;
 
-            setUserId(user.id);
-            setUserEmail(user.email);
+        const loadSettings = async (session) => {
+            if (!session?.user || initialized) return;
+            initialized = true;
 
-            setProviders(user.app_metadata?.providers || []);
+            const user = session.user;
+
+            if (mounted) {
+                setUserId(user.id);
+                setUserEmail(user.email);
+                setProviders(user.app_metadata?.providers || []);
+            }
 
             const { data: profile } = await supabase
                 .from("profiles")
                 .select("username")
                 .eq("id", user.id)
-                .single();
+                .maybeSingle();
 
-            if (profile) {
-                setUsername(profile.username);
-            }
+            if (mounted && profile) setUsername(profile.username);
 
             const { data } = await supabase
                 .from("user_settings")
                 .select("*")
                 .eq("user_id", user.id)
-                .single();
+                .maybeSingle();
 
             const savedTheme = localStorage.getItem("theme");
             const syncedSettings = {
@@ -108,7 +109,7 @@ function UserSettings() {
                 dark_mode:
                     savedTheme === "dark" ? true
                         : savedTheme === "light" ? false
-                            : (data || settings).dark_mode,
+                            : (data?.dark_mode ?? false),
             };
 
             applyTheme(syncedSettings.dark_mode);
@@ -118,20 +119,37 @@ function UserSettings() {
                     user_id: user.id,
                     ...syncedSettings,
                 });
-                setSettings(syncedSettings);
-                setLoading(false);
-                return;
             }
 
-            setSettings(syncedSettings);
-            setLoading(false);
+            if (mounted) {
+                setSettings(syncedSettings);
+                setLoading(false);
+            }
         };
 
-        loadSettings();
+        // Try getSession first (fast path)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+                loadSettings(session);
+            }
+        });
 
-        if ("serviceWorker" in navigator && "PushManager" in window) {
-            setPushSupported(true);
-        }
+        // onAuthStateChange handles late session restore
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
+            (event, session) => {
+                if (event === "INITIAL_SESSION" || event === "SIGNED_IN") {
+                    loadSettings(session);
+                }
+                if (event === "SIGNED_OUT" && mounted) {
+                    setLoading(false);
+                }
+            }
+        );
+
+        return () => {
+            mounted = false;
+            subscription.unsubscribe();
+        };
     }, []);
 
     const updateSetting = async (key, value) => {
@@ -149,13 +167,10 @@ function UserSettings() {
             const reg = await navigator.serviceWorker.register("/sw.js");
             const existing = await reg.pushManager.getSubscription();
             if (existing) {
-                await supabase
-                    .from("push_subscriptions")
-                    .upsert({
-                        user_id: userId,
-                        subscription: JSON.stringify(existing),
-                    });
-
+                await supabase.from("push_subscriptions").upsert({
+                    user_id: userId,
+                    subscription: JSON.stringify(existing),
+                });
                 return existing;
             }
 
@@ -179,10 +194,7 @@ function UserSettings() {
         try {
             const reg = await navigator.serviceWorker.getRegistration("/sw.js");
             const sub = await reg?.pushManager.getSubscription();
-            if (sub) {
-                await sub.unsubscribe();
-            }
-
+            if (sub) await sub.unsubscribe();
             await supabase
                 .from("push_subscriptions")
                 .delete()
@@ -211,9 +223,7 @@ function UserSettings() {
 
     const copyLink = async () => {
         if (!hiddenLink) return;
-
         await navigator.clipboard.writeText(hiddenLink);
-
         setCopyFeedback(true);
         setTimeout(() => setCopyFeedback(false), 2000);
     };
@@ -222,9 +232,7 @@ function UserSettings() {
         if (!userEmail) return;
 
         if (isGoogleOnly) {
-            setPasswordMsg(
-                "You signed in with Google. Password reser is not required."
-            );
+            setPasswordMsg("You signed in with Google. Password reset is not required.");
             return;
         }
 
@@ -232,7 +240,7 @@ function UserSettings() {
         setPasswordMsg("");
 
         const { error } = await supabase.auth.resetPasswordForEmail(userEmail, {
-            redirectTo: "https://hiddenpen.app/reset-password", // <-- palitan ng tamang URL
+            redirectTo: "https://hiddenpen.app/reset-password",
         });
 
         setPasswordLoading(false);
@@ -244,22 +252,18 @@ function UserSettings() {
     };
 
     const isGoogleOnly =
-        providers.includes("google") &&
-        !providers.includes("email");
-
-    if (loading) {
-        return <div className="p-10 text-center">Loading settings...</div>;
-    }
+        providers.includes("google") && !providers.includes("email");
 
     const handleLinkGoogle = async () => {
-        const { error } = await supabase.auth.linkIdentity({
-            provider: 'google',
-        });
-
+        const { error } = await supabase.auth.linkIdentity({ provider: "google" });
         if (error) {
             console.error("Link error:", error);
             alert("Failed to link Google account.");
         }
+    };
+
+    if (loading) {
+        return <div className="p-10 text-center">Loading settings...</div>;
     }
 
     return (
@@ -291,7 +295,6 @@ function UserSettings() {
                         />
                     </label>
 
-                    {/* RECEIVE MESSAGES */}
                     <label className="flex items-center justify-between gap-4 py-2">
                         <div>
                             <span>Receive Messages</span>
@@ -363,22 +366,19 @@ function UserSettings() {
                             Your link is currently paused. Enable "Receive Messages" in Privacy to activate it.
                         </p>
                     ) : (
-                        <a 
-                            href="{hiddenLink"
+                        <a
+                            href={hiddenLink}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm break-all mb-3 text-gray-500 underline">
-                                {hiddenLink}
+                            {hiddenLink}
                         </a>
                     )}
 
                     <button
                         onClick={copyLink}
                         disabled={!settings.allow_link_sharing}
-                        className={` w-1/2 md:w-52 px-4 py-2 rounded-lg text-white transition-all bg-primary ${!settings.allow_link_sharing
-                            ? "opacity-50 cursor-not-allowed"
-                            : ""
-                            }`}
+                        className={`w-1/2 md:w-52 px-4 py-2 rounded-lg text-white transition-all bg-primary ${!settings.allow_link_sharing ? "opacity-50 cursor-not-allowed" : ""}`}
                     >
                         {!settings.allow_link_sharing ? "Link Disabled" : copyFeedback ? "✓ Copied!" : "Copy Link"}
                     </button>
@@ -428,8 +428,7 @@ function UserSettings() {
                     {isGoogleOnly ? (
                         <div className="py-2">
                             <p className="text-sm text-gray-400">
-                                You signed in with Google.
-                                Password reset is not required.
+                                You signed in with Google. Password reset is not required.
                             </p>
                         </div>
                     ) : (
@@ -439,18 +438,11 @@ function UserSettings() {
                                 disabled={passwordLoading}
                                 className="block w-full text-left py-2 disabled:opacity-50"
                             >
-                                {passwordLoading
-                                    ? "Sending reset link..."
-                                    : "Change Password"}
+                                {passwordLoading ? "Sending reset link..." : "Change Password"}
                             </button>
 
                             {passwordMsg && (
-                                <p
-                                    className={`text-xs mt-1 ${passwordMsg.includes("sent")
-                                        ? "text-green-500"
-                                        : "text-red-500"
-                                        }`}
-                                >
+                                <p className={`text-xs mt-1 ${passwordMsg.includes("sent") ? "text-green-500" : "text-red-500"}`}>
                                     {passwordMsg}
                                 </p>
                             )}
@@ -483,7 +475,6 @@ function UserSettings() {
                     )}
                 </div>
             </div>
-
         </>
     );
 }
