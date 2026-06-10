@@ -78,20 +78,28 @@ function UserProfile() {
     const { error } = await supabase
       .from("profiles")
       .update({
-        display_name: profile.fullName,
+        display_name: profile.fullname,
         username: profile.username,
         phone: profile.phone,
         avatar_url: profile.avatarUrl,
       })
       .eq("id", session.user.id);
 
-    setSaving(false);
+    
 
     if (error) {
       alert(error.message);
       return;
     }
 
+    await supabase.auth.updateUser({
+      data: {
+        display_name: profile.fullname,
+        full_name: profile.fullname,
+      }
+    });
+
+    setSaving(false);
     setSuccessModal(true);
   };
 
@@ -147,7 +155,7 @@ function UserProfile() {
               </label>
               <input
                 type="text"
-                name="fullName"
+                name="fullname"
                 value={profile.fullname}
                 onChange={handleChange}
                 className="w-full text-text-light border border-default rounded-base p-2 bg-white dark:bg-neutral-900 dark:text-white"

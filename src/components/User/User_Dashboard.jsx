@@ -46,18 +46,25 @@ function User_Dashboard() {
 
         const { error: profileError } = await supabase
             .from("profiles")
-            .upsert({
-                id: user.id,
-                username,
-                display_name:
-                    user.user_metadata?.display_name ||
-                    user.user_metadata?.name ||
-                    "Hidden Pen User",
-                avatar_url:
-                    user.user_metadata?.avatar_url ||
-                    user.user_metadata?.picture ||
-                    "",
-            });
+            .upsert(
+                {
+                    id: user.id,
+                    username,
+                    display_name:
+                        user.user_metadata?.display_name ||
+                        user.user_metadata?.full_name ||
+                        user.user_metadata?.name ||
+                        "",
+                    avatar_url:
+                        user.user_metadata?.avatar_url ||
+                        user.user_metadata?.picture ||
+                        "",
+            },
+            {
+                onConflict: "id",
+                ignoreDuplicates: true,
+            }
+        );
 
         if (profileError) {
             console.error("Profile error:", profileError);
@@ -172,8 +179,9 @@ function User_Dashboard() {
 
             setDisplayName(
                 session.user.user_metadata?.display_name ||
+                session.user.user_metadata?.full_name ||
                 session.user.user_metadata?.name ||
-                "Hidden Pen User"
+                "User"
             );
 
             setProfileImage(
@@ -189,6 +197,8 @@ function User_Dashboard() {
                 .select("*")
                 .eq("id", session.user.id)
                 .single();
+
+            setDisplayName(profile.display_name || session.user.email.split("@")[0]);
 
             if (profileError) {
                 console.error("Get profile error:", profileError);
