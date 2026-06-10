@@ -59,6 +59,7 @@ function User_Dashboard() {
                         user.user_metadata?.avatar_url ||
                         user.user_metadata?.picture ||
                         "",
+                    email: user.email,
             },
             {
                 onConflict: "id",
