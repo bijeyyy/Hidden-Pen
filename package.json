@@ -16,6 +16,7 @@
     "@tailwindcss/vite": "^4.2.4",
     "flowbite": "^4.0.1",
     "html2canvas-pro": "^2.0.4",
+    "lucide-react": "^1.25.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
     "react-router-dom": "^7.14.2",

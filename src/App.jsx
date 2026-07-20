@@ -35,6 +35,7 @@ import {
 
 import { useEffect, useState, useRef } from 'react'
 import { supabase } from './lib/SupabaseClient'
+import MaintenancePage from "./components/maintenance/MaintenancePage"
 
 
 function AuthGate({ children }) {
@@ -151,8 +152,12 @@ function ThemeManager() {
   return null
 }
 
+const MAINTENANCE_MODE = import.meta.env.VITE_MAINTENANCE_MODE === "true";
 
 function App() {
+  if (MAINTENANCE_MODE) {
+    return <MaintenancePage eta="Back online: We will update you" />;
+  }
   return (
     <BrowserRouter>
       <AuthGate>
